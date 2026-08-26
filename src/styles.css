@@ -1,0 +1,238 @@
+@import "tailwindcss" source(none);
+@source "../src";
+
+/*
+ * Enoch Tech — clean tech design system.
+ * Dark, minimal, electric blue accent. All colors in oklch.
+ */
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
+
+  --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-elevated: var(--surface-elevated);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-glow: var(--primary-glow);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-ring-offset-background: var(--background);
+
+  --ease-smooth: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+:root {
+  --radius: 0.75rem;
+
+  --background: oklch(0.14 0.012 265);
+  --foreground: oklch(0.97 0.004 265);
+
+  --surface: oklch(0.175 0.013 265);
+  --surface-elevated: oklch(0.21 0.014 265);
+
+  --card: oklch(0.175 0.013 265);
+  --card-foreground: oklch(0.97 0.004 265);
+  --popover: oklch(0.175 0.013 265);
+  --popover-foreground: oklch(0.97 0.004 265);
+
+  --primary: oklch(0.58 0.216 262);
+  --primary-foreground: oklch(0.99 0 0);
+  --primary-glow: oklch(0.68 0.18 250);
+
+  --secondary: oklch(0.22 0.014 265);
+  --secondary-foreground: oklch(0.97 0.004 265);
+
+  --muted: oklch(0.22 0.014 265);
+  --muted-foreground: oklch(0.88 0.006 265);
+
+  --accent: oklch(0.24 0.03 262);
+  --accent-foreground: oklch(0.97 0.004 265);
+
+  --destructive: oklch(0.6 0.22 25);
+  --destructive-foreground: oklch(0.99 0 0);
+
+  --border: oklch(1 0 0 / 9%);
+  --input: oklch(1 0 0 / 12%);
+  --ring: oklch(0.58 0.216 262);
+
+  --gradient-hero: radial-gradient(
+    120% 90% at 70% 10%,
+    color-mix(in oklab, var(--primary) 26%, transparent) 0%,
+    transparent 60%
+  );
+  --gradient-primary: linear-gradient(135deg, var(--primary), var(--primary-glow));
+  --shadow-glow: 0 0 0 1px color-mix(in oklab, var(--primary) 35%, transparent),
+    0 18px 60px -20px color-mix(in oklab, var(--primary) 55%, transparent);
+  --shadow-card: 0 24px 60px -32px oklch(0 0 0 / 80%);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  html {
+    scroll-behavior: smooth;
+    color-scheme: dark;
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display);
+    letter-spacing: -0.025em;
+  }
+
+  ::selection {
+    background: color-mix(in oklab, var(--primary) 40%, transparent);
+  }
+}
+
+@utility surface-panel {
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+}
+
+@utility glow-accent {
+  box-shadow: var(--shadow-glow);
+}
+
+@utility hero-glow {
+  background-image: var(--gradient-hero);
+}
+
+@utility text-gradient {
+  background-image: var(--gradient-primary);
+  background-clip: text;
+  color: transparent;
+}
+
+@utility grid-lines {
+  background-image:
+    linear-gradient(to right, oklch(1 0 0 / 4%) 1px, transparent 1px),
+    linear-gradient(to bottom, oklch(1 0 0 / 4%) 1px, transparent 1px);
+  background-size: 72px 72px;
+}
+
+@utility reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition:
+    opacity 0.7s var(--ease-smooth),
+    transform 0.7s var(--ease-smooth);
+  will-change: opacity, transform;
+}
+
+@utility reveal-visible {
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/*
+ * Fora de qualquer @layer de propósito: quando este site roda embutido em
+ * uma página host (ex: preview publicado), um reset da própria página host
+ * pode vir sem @layer nenhum — e CSS sem @layer sempre vence CSS dentro de
+ * @layer, não importa a ordem. Isso fazia o fundo aparecer claro/errado.
+ * Essa regra, também sem @layer, garante que o fundo escuro sempre vence.
+ *
+ * O MESMO problema também derrubava o "color" do body: quase nenhum título
+ * (h1/h2/h3) do site define a própria cor de texto — todos herdam a cor do
+ * body. Antes essa herança dependia de `body { color: var(--color-foreground) }`
+ * dentro de @layer base, que podia perder pra um reset unlayered da página
+ * host (ex.: `body { color: #000 }`), deixando títulos pretos sobre fundo
+ * preto. Agora fixamos "color" aqui também, fora de @layer, e reforçamos
+ * h1–h6 individualmente por segurança.
+ */
+html,
+body {
+  background-color: oklch(0.14 0.012 265) !important;
+  color: oklch(0.97 0.004 265) !important;
+  color-scheme: dark;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  color: oklch(0.97 0.004 265) !important;
+}
+
+/*
+ * O mesmo problema de @layer também afeta as variáveis --color-* geradas
+ * pelo bloco "@theme inline" acima: o Tailwind sempre coloca @theme dentro
+ * de uma camada (mesmo com "inline"), então se a página host também usa
+ * nomes de variável parecidos (--color-foreground, --color-muted-foreground
+ * etc — comuns em qualquer projeto shadcn/Tailwind v4), a declaração do
+ * host pode vencer e deixar textos e fundos com a cor errada, mesmo que o
+ * valor "certo" esteja definido logo acima. Redeclarando tudo aqui fora de
+ * @layer, com valores literais (sem var() encadeado), garantimos que as
+ * cores da Enoch Tech sempre vencem, não importa o que a página host faça.
+ */
+:root {
+  --color-background: oklch(0.14 0.012 265);
+  --color-foreground: oklch(0.97 0.004 265);
+  --color-surface: oklch(0.175 0.013 265);
+  --color-surface-elevated: oklch(0.21 0.014 265);
+  --color-card: oklch(0.175 0.013 265);
+  --color-card-foreground: oklch(0.97 0.004 265);
+  --color-popover: oklch(0.175 0.013 265);
+  --color-popover-foreground: oklch(0.97 0.004 265);
+  --color-primary: oklch(0.58 0.216 262);
+  --color-primary-foreground: oklch(0.99 0 0);
+  --color-primary-glow: oklch(0.68 0.18 250);
+  --color-secondary: oklch(0.22 0.014 265);
+  --color-secondary-foreground: oklch(0.97 0.004 265);
+  --color-muted: oklch(0.22 0.014 265);
+  --color-muted-foreground: oklch(0.88 0.006 265);
+  --color-accent: oklch(0.24 0.03 262);
+  --color-accent-foreground: oklch(0.97 0.004 265);
+  --color-destructive: oklch(0.6 0.22 25);
+  --color-destructive-foreground: oklch(0.99 0 0);
+  --color-border: oklch(1 0 0 / 9%);
+  --color-input: oklch(1 0 0 / 12%);
+  --color-ring: oklch(0.58 0.216 262);
+  --color-ring-offset-background: oklch(0.14 0.012 265);
+}
