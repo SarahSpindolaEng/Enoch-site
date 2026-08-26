@@ -3,6 +3,7 @@ import { Heart, Menu, ShoppingBag, User, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { useCart } from "@/lib/cart";
+import { useAuth } from "@/lib/auth";
 import { EnochLogo } from "./EnochLogo";
 
 const nav = [
@@ -25,6 +26,8 @@ export function Header() {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
   const { cartCount, wishlistCount } = useCart();
+  const { user } = useAuth();
+  const contaHref = user ? "/perfil" : "/login";
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 12);
@@ -63,7 +66,7 @@ export function Header() {
 
         <div className="flex items-center gap-2 justify-self-end">
           <Link
-            to="/login"
+            to={contaHref}
             aria-label="Entrar / minha conta"
             className="hidden size-10 place-items-center rounded-full border border-border text-foreground transition-all duration-300 hover:border-primary/60 hover:text-primary hover:shadow-[0_0_24px_-8px_var(--primary)] sm:grid"
           >
@@ -121,7 +124,7 @@ export function Header() {
           ))}
           <div className="mt-1 flex items-center gap-3 border-t border-border pt-3">
             <Link
-              to="/login"
+              to={contaHref}
               onClick={() => setOpen(false)}
               className="flex items-center gap-2 rounded-lg px-2 py-2 text-sm text-muted-foreground hover:text-foreground"
             >
