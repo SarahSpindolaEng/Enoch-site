@@ -25,8 +25,12 @@ export function Login() {
     setCarregando(true);
 
     if (modo === "criar") {
+      // Abaixo disso, uma ou duas ocorrências podem ser coincidência de hash
+      // e não valem travar o cadastro — mas qualquer senha realmente comum
+      // já passa longe desse número.
+      const LIMITE_VAZAMENTOS = 100;
       const vazamentos = await vezesVazada(senha);
-      if (vazamentos > 0) {
+      if (vazamentos > LIMITE_VAZAMENTOS) {
         setCarregando(false);
         return setErro(
           `Essa senha já apareceu em ${vazamentos.toLocaleString("pt-BR")} vazamentos conhecidos. Escolha uma senha diferente, que você não use em outro site.`,
