@@ -239,7 +239,8 @@ function ProdutosTab() {
 
     let imageUrl = rascunho.image_url;
     if (imagemArquivo) {
-      const caminho = `${Date.now()}-${imagemArquivo.name}`;
+      const nomeSeguro = imagemArquivo.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+      const caminho = `${Date.now()}-${nomeSeguro}`;
       const { error: uploadError } = await supabase.storage
         .from("product-images")
         .upload(caminho, imagemArquivo);
