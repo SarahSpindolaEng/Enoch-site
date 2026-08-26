@@ -8,13 +8,23 @@ import { cn } from "@/lib/utils";
  */
 export function ProductArt({
   Icon,
+  imageUrl,
   tone = "default",
   className,
 }: {
   Icon: LucideIcon;
+  imageUrl?: string | null;
   tone?: "default" | "bright";
   className?: string;
 }) {
+  if (imageUrl) {
+    return (
+      <div className={cn("relative flex size-full items-center justify-center overflow-hidden", className)}>
+        <img src={imageUrl} alt="" className="size-full object-cover" />
+      </div>
+    );
+  }
+
   return (
     <div
       className={cn(

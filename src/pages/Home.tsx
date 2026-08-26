@@ -3,7 +3,7 @@ import { ArrowRight, BadgeCheck, Truck, Undo2 } from "lucide-react";
 import { Reveal } from "@/components/site/Reveal";
 import { ProductCard } from "@/components/site/ProductCard";
 import { EnochMark } from "@/components/site/EnochLogo";
-import { products } from "@/lib/products";
+import { useProducts } from "@/lib/products";
 import homeSquare from "@/assets/home-square.webp";
 
 const valores = [
@@ -25,7 +25,8 @@ const valores = [
 ];
 
 export function Home() {
-  const destaques = products;
+  const produtos = useProducts();
+  const destaques = produtos ?? [];
 
   return (
     <div>

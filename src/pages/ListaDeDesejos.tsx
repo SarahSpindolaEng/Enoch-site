@@ -2,12 +2,17 @@ import { Link } from "react-router-dom";
 import { Heart } from "lucide-react";
 import { Reveal } from "@/components/site/Reveal";
 import { ProductCard } from "@/components/site/ProductCard";
-import { products } from "@/lib/products";
+import { useProducts } from "@/lib/products";
 import { useCart } from "@/lib/cart";
 
 export function ListaDeDesejos() {
   const { wishlist } = useCart();
-  const itens = products.filter((p) => wishlist.includes(p.slug));
+  const produtos = useProducts();
+  const itens = (produtos ?? []).filter((p) => wishlist.includes(p.slug));
+
+  if (produtos === null) {
+    return <p className="pt-40 text-center text-sm text-muted-foreground">Carregando…</p>;
+  }
 
   if (itens.length === 0) {
     return (

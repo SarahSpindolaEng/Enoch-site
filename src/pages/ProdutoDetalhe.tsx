@@ -4,20 +4,24 @@ import { ArrowLeft, Check, Heart, ShoppingBag, Truck } from "lucide-react";
 import { Reveal } from "@/components/site/Reveal";
 import { ProductCard } from "@/components/site/ProductCard";
 import { ProductArt } from "@/components/site/ProductArt";
-import { formatPrice, getProduct, products } from "@/lib/products";
+import { formatPrice, useProduct, useProducts } from "@/lib/products";
 import { useCart } from "@/lib/cart";
 import { cn } from "@/lib/utils";
 
 export function ProdutoDetalhe() {
   const { slug } = useParams<{ slug: string }>();
-  const product = slug ? getProduct(slug) : undefined;
+  const product = useProduct(slug);
+  const produtos = useProducts();
   const [cor, setCor] = useState(0);
   const [added, setAdded] = useState(false);
   const { addToCart, toggleWishlist, isWishlisted } = useCart();
 
-  if (!product) return <Navigate to="/produtos" replace />;
+  if (product === undefined) {
+    return <p className="pt-40 text-center text-sm text-muted-foreground">Carregando…</p>;
+  }
+  if (product === null) return <Navigate to="/produtos" replace />;
 
-  const relacionados = products.filter((p) => p.slug !== product.slug).slice(0, 3);
+  const relacionados = (produtos ?? []).filter((p) => p.slug !== product.slug).slice(0, 3);
   const wishlisted = isWishlisted(product.slug);
 
   return (
@@ -37,7 +41,7 @@ export function ProdutoDetalhe() {
           {/* Galeria */}
           <Reveal className="min-w-0">
             <div className="aspect-square overflow-hidden rounded-3xl border border-border bg-surface">
-              <ProductArt Icon={product.icon} tone="bright" />
+              <ProductArt Icon={product.icon} imageUrl={product.imageUrl} tone="bright" />
             </div>
           </Reveal>
 

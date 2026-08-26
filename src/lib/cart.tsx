@@ -7,7 +7,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { getProduct } from "@/lib/products";
+import { useProducts } from "@/lib/products";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/lib/auth";
 
@@ -100,6 +100,7 @@ function traduzErroPedido(message: string): string {
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
+  const produtos = useProducts();
   const [lines, setLines] = useState<CartLine[]>(() => readStorage("enoch-cart", []));
   const [wishlist, setWishlist] = useState<string[]>(() => readStorage("enoch-wishlist", []));
   const syncedForUser = useRef<string | null>(null);
@@ -201,10 +202,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const subtotal = useMemo(
     () =>
       lines.reduce((sum, l) => {
-        const p = getProduct(l.slug);
+        const p = produtos?.find((x) => x.slug === l.slug);
         return p ? sum + p.price * l.qty : sum;
       }, 0),
-    [lines],
+    [lines, produtos],
   );
 
   const cartCount = lines.reduce((sum, l) => sum + l.qty, 0);

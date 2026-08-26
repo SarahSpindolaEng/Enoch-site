@@ -17,6 +17,7 @@ export function ProductCard({ product }: { product: Product }) {
       >
         <ProductArt
           Icon={product.icon}
+          imageUrl={product.imageUrl}
           tone={product.badge ? "bright" : "default"}
           className="transition-transform duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-105"
         />

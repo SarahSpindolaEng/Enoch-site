@@ -4,7 +4,7 @@ import { SlidersHorizontal } from "lucide-react";
 import { Reveal } from "@/components/site/Reveal";
 import { ProductCard } from "@/components/site/ProductCard";
 import { PromoBanner } from "@/components/site/PromoBanner";
-import { categories, products } from "@/lib/products";
+import { categories, useProducts } from "@/lib/products";
 import { cn } from "@/lib/utils";
 
 const ordenacoes = ["Relevância", "Menor preço", "Maior preço"] as const;
@@ -19,6 +19,7 @@ export function Catalogo() {
 
   const [categoria, setCategoria] = useState<string>(categoriaInicial);
   const [ordem, setOrdem] = useState<string>("Relevância");
+  const produtos = useProducts();
 
   // Sincroniza o filtro quando o parâmetro ?categoria= muda por um link
   // clicado enquanto já se está nesta página (ex: banner de promoção) —
@@ -30,12 +31,12 @@ export function Catalogo() {
   }, [categoriaUrl]);
 
   const lista = useMemo(() => {
-    const filtrados =
-      categoria === "Todos" ? [...products] : products.filter((p) => p.category === categoria);
+    const base = produtos ?? [];
+    const filtrados = categoria === "Todos" ? [...base] : base.filter((p) => p.category === categoria);
     if (ordem === "Menor preço") filtrados.sort((a, b) => a.price - b.price);
     if (ordem === "Maior preço") filtrados.sort((a, b) => b.price - a.price);
     return filtrados;
-  }, [categoria, ordem]);
+  }, [produtos, categoria, ordem]);
 
   return (
     <div className="relative">
@@ -48,7 +49,7 @@ export function Catalogo() {
             Todos os produtos
           </h1>
           <p className="mt-5 text-base leading-relaxed text-muted-foreground">
-            Uma curadoria curta e deliberada. {products.length} produtos de marcas
+            Uma curadoria curta e deliberada. {produtos?.length ?? 0} produtos de marcas
             parceiras, cada um selecionado pra durar anos.
           </p>
         </Reveal>
@@ -98,13 +99,19 @@ export function Catalogo() {
           </div>
         </Reveal>
 
-        <div className="mt-8 grid gap-6 pb-24 sm:grid-cols-2 lg:grid-cols-3">
-          {lista.map((product, i) => (
-            <Reveal key={product.slug} delay={(i % 3) * 80}>
-              <ProductCard product={product} />
-            </Reveal>
-          ))}
-        </div>
+        {produtos === null ? (
+          <p className="mt-8 pb-24 text-sm text-muted-foreground">Carregando produtos…</p>
+        ) : lista.length === 0 ? (
+          <p className="mt-8 pb-24 text-sm text-muted-foreground">Nenhum produto nessa categoria.</p>
+        ) : (
+          <div className="mt-8 grid gap-6 pb-24 sm:grid-cols-2 lg:grid-cols-3">
+            {lista.map((product, i) => (
+              <Reveal key={product.slug} delay={(i % 3) * 80}>
+                <ProductCard product={product} />
+              </Reveal>
+            ))}
+          </div>
+        )}
       </section>
     </div>
   );

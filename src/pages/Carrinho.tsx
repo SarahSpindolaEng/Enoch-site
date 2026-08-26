@@ -3,13 +3,14 @@ import { Link, useNavigate } from "react-router-dom";
 import { CheckCircle2, Minus, Plus, ShoppingBag, Trash2 } from "lucide-react";
 import { Reveal } from "@/components/site/Reveal";
 import { ProductArt } from "@/components/site/ProductArt";
-import { formatPrice, getProduct } from "@/lib/products";
+import { formatPrice, useProducts } from "@/lib/products";
 import { useCart } from "@/lib/cart";
 import { useAuth } from "@/lib/auth";
 
 export function Carrinho() {
   const { lines, setQty, removeFromCart, subtotal, checkout } = useCart();
   const { user } = useAuth();
+  const produtos = useProducts();
   const navigate = useNavigate();
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -86,7 +87,7 @@ export function Carrinho() {
         <div className="mt-10 grid gap-10 lg:grid-cols-[minmax(0,1fr)_22rem]">
           <Reveal className="min-w-0 space-y-4">
             {lines.map((line) => {
-              const p = getProduct(line.slug);
+              const p = produtos?.find((x) => x.slug === line.slug);
               if (!p) return null;
               return (
                 <div
@@ -97,7 +98,7 @@ export function Carrinho() {
                     to={`/produtos/${p.slug}`}
                     className="size-20 shrink-0 overflow-hidden rounded-xl border border-border"
                   >
-                    <ProductArt Icon={p.icon} />
+                    <ProductArt Icon={p.icon} imageUrl={p.imageUrl} />
                   </Link>
                   <div className="min-w-0 flex-1">
                     <Link to={`/produtos/${p.slug}`} className="truncate text-sm font-semibold hover:text-primary">
