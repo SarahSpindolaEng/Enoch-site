@@ -1,9 +1,10 @@
 import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
-import { Lock, Mail, User as UserIcon } from "lucide-react";
+import { Lock, Mail, ShieldAlert, User as UserIcon } from "lucide-react";
 import { Reveal } from "@/components/site/Reveal";
 import { EnochMark } from "@/components/site/EnochLogo";
 import { useAuth } from "@/lib/auth";
+import { vezesVazada } from "@/lib/pwnedPassword";
 import { cn } from "@/lib/utils";
 
 export function Login() {
@@ -24,6 +25,14 @@ export function Login() {
     setCarregando(true);
 
     if (modo === "criar") {
+      const vazamentos = await vezesVazada(senha);
+      if (vazamentos > 0) {
+        setCarregando(false);
+        return setErro(
+          `Essa senha já apareceu em ${vazamentos.toLocaleString("pt-BR")} vazamentos conhecidos. Escolha uma senha diferente, que você não use em outro site.`,
+        );
+      }
+
       const { error, needsEmailConfirmation } = await signUp(email, senha, nome);
       setCarregando(false);
       if (error) return setErro(error);
@@ -157,6 +166,21 @@ export function Login() {
             Sua conta é protegida por autenticação real — seus dados ficam
             salvos com segurança, não só no navegador.
           </p>
+
+          <div className="mt-6 rounded-2xl border border-amber-400/25 bg-amber-400/[0.06] p-4 text-xs leading-relaxed text-muted-foreground">
+            <div className="flex items-center gap-2 text-amber-300">
+              <ShieldAlert className="size-4 shrink-0" />
+              <span className="font-semibold uppercase tracking-[0.08em]">Segurança da sua conta</span>
+            </div>
+            <ul className="mt-3 list-disc space-y-1.5 pl-4">
+              <li>Não reutilize uma senha que você já usa em outro site.</li>
+              <li>
+                Se o Google, seu navegador ou um gerenciador de senhas avisar que essa senha já
+                apareceu em um vazamento, troque por uma nova aqui mesmo.
+              </li>
+              <li>Evite senhas óbvias (nome, data de nascimento, sequências como "123456").</li>
+            </ul>
+          </div>
         </div>
       </Reveal>
     </div>
