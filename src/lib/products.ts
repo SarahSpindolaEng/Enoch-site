@@ -19,6 +19,7 @@ export type Product = {
   colors: { name: string; value: string }[];
   specs: { label: string; value: string }[];
   stock: number;
+  installments: number;
 };
 
 export const categories = ["Todos", "Áudio", "Vestíveis", "Acessórios"] as const;
@@ -48,6 +49,7 @@ function paraProduto(p: DbProduct): Product {
     colors: p.colors,
     specs: p.specs,
     stock: p.stock,
+    installments: p.installments,
   };
 }
 

@@ -74,9 +74,12 @@ export function ProdutoDetalhe() {
                   </span>
                 ) : null}
               </div>
-              <p className="mt-1 text-sm text-muted-foreground">
-                ou 12x de {formatPrice(Math.round(product.price / 12))} sem juros
-              </p>
+              {product.installments > 1 ? (
+                <p className="mt-1 text-sm text-muted-foreground">
+                  ou {product.installments}x de{" "}
+                  {formatPrice(Math.round(product.price / product.installments))} sem juros
+                </p>
+              ) : null}
 
               <p className="mt-7 max-w-lg text-sm leading-relaxed text-muted-foreground">
                 {product.description}

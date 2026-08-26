@@ -128,14 +128,20 @@ function PedidosTab() {
   );
 }
 
+type Especificacao = { label: string; value: string };
+
 type Rascunho = {
   name: string;
   brand: string;
   category: string;
+  tagline: string;
+  description: string;
   price: number;
   stock: number;
+  installments: number;
   is_active: boolean;
   image_url: string | null;
+  specs: Especificacao[];
 };
 
 function paraRascunho(p: DbProduct): Rascunho {
@@ -143,10 +149,14 @@ function paraRascunho(p: DbProduct): Rascunho {
     name: p.name,
     brand: p.brand,
     category: p.category,
+    tagline: p.tagline ?? "",
+    description: p.description ?? "",
     price: p.price,
     stock: p.stock,
+    installments: p.installments,
     is_active: p.is_active,
     image_url: p.image_url,
+    specs: p.specs ?? [],
   };
 }
 
@@ -154,10 +164,14 @@ const rascunhoVazio: Rascunho = {
   name: "",
   brand: "",
   category: produtoCategorias[0],
+  tagline: "",
+  description: "",
   price: 0,
   stock: 0,
+  installments: 12,
   is_active: true,
   image_url: null,
+  specs: [],
 };
 
 function ProdutosTab() {
@@ -406,7 +420,16 @@ function ProdutoLinhaEdicao({
 }) {
   const preview = imagemArquivo ? URL.createObjectURL(imagemArquivo) : imagemAtual;
 
+  const atualizarSpec = (i: number, patch: Partial<Especificacao>) => {
+    const specs = rascunho.specs.map((s, idx) => (idx === i ? { ...s, ...patch } : s));
+    setRascunho({ ...rascunho, specs });
+  };
+  const adicionarSpec = () => setRascunho({ ...rascunho, specs: [...rascunho.specs, { label: "", value: "" }] });
+  const removerSpec = (i: number) =>
+    setRascunho({ ...rascunho, specs: rascunho.specs.filter((_, idx) => idx !== i) });
+
   return (
+    <>
     <tr className="border-b border-border bg-primary/5">
       <td className="px-5 py-3.5">
         <label className="grid size-12 cursor-pointer place-items-center overflow-hidden rounded-lg border border-dashed border-primary/50 text-[10px] text-muted-foreground hover:border-primary">
@@ -504,6 +527,96 @@ function ProdutoLinhaEdicao({
         </div>
       </td>
     </tr>
+    <tr className="border-b border-border bg-primary/5">
+      <td colSpan={7} className="px-5 pb-5">
+        <div className="grid gap-3 rounded-xl border border-border bg-background p-4 sm:grid-cols-2">
+          <label className="block sm:col-span-2">
+            <span className="text-xs uppercase tracking-[0.12em] text-muted-foreground">
+              Subtítulo (aparece no card do produto)
+            </span>
+            <input
+              value={rascunho.tagline}
+              onChange={(e) => setRascunho({ ...rascunho, tagline: e.target.value })}
+              placeholder="Frase curta que resume o produto"
+              className="mt-1 w-full rounded-lg border border-input bg-surface px-3 py-2 text-sm outline-none"
+            />
+          </label>
+
+          <label className="block sm:col-span-2">
+            <span className="text-xs uppercase tracking-[0.12em] text-muted-foreground">
+              Descrição completa
+            </span>
+            <textarea
+              value={rascunho.description}
+              onChange={(e) => setRascunho({ ...rascunho, description: e.target.value })}
+              rows={3}
+              placeholder="Texto que aparece na página do produto"
+              className="mt-1 w-full rounded-lg border border-input bg-surface px-3 py-2 text-sm outline-none"
+            />
+          </label>
+
+          <label className="block">
+            <span className="text-xs uppercase tracking-[0.12em] text-muted-foreground">
+              Parcelamento (sem juros)
+            </span>
+            <div className="mt-1 flex items-center gap-2">
+              <input
+                type="number"
+                min={1}
+                max={24}
+                value={rascunho.installments}
+                onChange={(e) =>
+                  setRascunho({ ...rascunho, installments: Math.max(1, Number(e.target.value) || 1) })
+                }
+                className="w-20 rounded-lg border border-input bg-surface px-3 py-2 text-sm outline-none"
+              />
+              <span className="text-xs text-muted-foreground">vezes</span>
+            </div>
+          </label>
+
+          <div className="sm:col-span-2">
+            <span className="text-xs uppercase tracking-[0.12em] text-muted-foreground">
+              Especificações técnicas
+            </span>
+            <div className="mt-1.5 space-y-2">
+              {rascunho.specs.map((spec, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <input
+                    value={spec.label}
+                    onChange={(e) => atualizarSpec(i, { label: e.target.value })}
+                    placeholder="Ex: Autonomia"
+                    className="w-1/3 rounded-lg border border-input bg-surface px-3 py-1.5 text-sm outline-none"
+                  />
+                  <input
+                    value={spec.value}
+                    onChange={(e) => atualizarSpec(i, { value: e.target.value })}
+                    placeholder="Ex: 40 horas"
+                    className="flex-1 rounded-lg border border-input bg-surface px-3 py-1.5 text-sm outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removerSpec(i)}
+                    className="grid size-8 shrink-0 place-items-center rounded-lg border border-border text-muted-foreground hover:border-red-400/50 hover:text-red-400"
+                    aria-label="Remover especificação"
+                  >
+                    <X className="size-3.5" />
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={adicionarSpec}
+                className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs text-muted-foreground hover:border-primary/40 hover:text-primary"
+              >
+                <Plus className="size-3.5" />
+                Adicionar especificação
+              </button>
+            </div>
+          </div>
+        </div>
+      </td>
+    </tr>
+    </>
   );
 }
 

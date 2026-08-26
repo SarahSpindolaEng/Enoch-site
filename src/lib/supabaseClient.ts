@@ -43,4 +43,5 @@ export type DbProduct = {
   stock: number;
   is_active: boolean;
   image_url: string | null;
+  installments: number;
 };
