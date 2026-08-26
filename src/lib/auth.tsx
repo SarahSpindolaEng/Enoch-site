@@ -69,12 +69,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) return { error: traduzErro(error.message) };
     // Se o projeto exige confirmação de e-mail, a sessão vem nula aqui —
     // a pessoa só entra de verdade depois de clicar no link do e-mail.
+    setUser(sessionToUser(data.session));
     return { error: null, needsEmailConfirmation: !data.session };
   };
 
   const signIn: AuthContextValue["signIn"] = async (email, password) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    return { error: error ? traduzErro(error.message) : null };
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) return { error: traduzErro(error.message) };
+    setUser(sessionToUser(data.session));
+    return { error: null };
   };
 
   const logout = async () => {
