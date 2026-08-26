@@ -1,11 +1,15 @@
 import { useEffect, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import {
+  Check,
+  ImagePlus,
   LayoutGrid,
   LogOut,
+  Pencil,
   Plus,
   ShoppingBag,
   Trash2,
+  X,
 } from "lucide-react";
 import { EnochMark } from "@/components/site/EnochLogo";
 import { useAdminAuth } from "@/lib/adminAuth";
@@ -124,8 +128,44 @@ function PedidosTab() {
   );
 }
 
+type Rascunho = {
+  name: string;
+  brand: string;
+  category: string;
+  price: number;
+  stock: number;
+  is_active: boolean;
+  image_url: string | null;
+};
+
+function paraRascunho(p: DbProduct): Rascunho {
+  return {
+    name: p.name,
+    brand: p.brand,
+    category: p.category,
+    price: p.price,
+    stock: p.stock,
+    is_active: p.is_active,
+    image_url: p.image_url,
+  };
+}
+
+const rascunhoVazio: Rascunho = {
+  name: "",
+  brand: "",
+  category: produtoCategorias[0],
+  price: 0,
+  stock: 0,
+  is_active: true,
+  image_url: null,
+};
+
 function ProdutosTab() {
   const [produtos, setProdutos] = useState<DbProduct[] | null>(null);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [rascunho, setRascunho] = useState<Rascunho | null>(null);
+  const [imagemArquivo, setImagemArquivo] = useState<File | null>(null);
+  const [salvando, setSalvando] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -146,31 +186,55 @@ function ProdutosTab() {
     void supabase.from("products").delete().eq("id", id);
   };
 
-  const alternarAtivo = (p: DbProduct) => {
-    setProdutos((prev) => prev?.map((x) => (x.id === p.id ? { ...x, is_active: !x.is_active } : x)) ?? null);
-    void supabase.from("products").update({ is_active: !p.is_active }).eq("id", p.id);
+  const iniciarEdicao = (p: DbProduct) => {
+    setEditId(p.id);
+    setRascunho(paraRascunho(p));
+    setImagemArquivo(null);
   };
 
-  const editarLocal = (id: string, patch: Partial<DbProduct>) => {
-    setProdutos((prev) => prev?.map((x) => (x.id === id ? { ...x, ...patch } : x)) ?? null);
+  const iniciarNovo = () => {
+    setEditId("__novo__");
+    setRascunho({ ...rascunhoVazio });
+    setImagemArquivo(null);
   };
 
-  const salvarCampo = (id: string, patch: Partial<DbProduct>) => {
-    void supabase.from("products").update(patch).eq("id", id);
+  const cancelar = () => {
+    setEditId(null);
+    setRascunho(null);
+    setImagemArquivo(null);
   };
 
-  const adicionar = async () => {
-    const novo = {
-      slug: `novo-produto-${Date.now()}`,
-      name: "Novo produto",
-      brand: "Marca",
-      category: produtoCategorias[0],
-      price: 0,
-      stock: 0,
-      is_active: true,
-    };
-    const { data } = await supabase.from("products").insert(novo).select().single();
-    if (data) setProdutos((prev) => [data as DbProduct, ...(prev ?? [])]);
+  const salvar = async () => {
+    if (!rascunho) return;
+    setSalvando(true);
+
+    let imageUrl = rascunho.image_url;
+    if (imagemArquivo) {
+      const caminho = `${Date.now()}-${imagemArquivo.name}`;
+      const { error: uploadError } = await supabase.storage
+        .from("product-images")
+        .upload(caminho, imagemArquivo);
+      if (!uploadError) {
+        imageUrl = supabase.storage.from("product-images").getPublicUrl(caminho).data.publicUrl;
+      }
+    }
+
+    const payload = { ...rascunho, image_url: imageUrl };
+
+    if (editId === "__novo__") {
+      const { data } = await supabase
+        .from("products")
+        .insert({ ...payload, slug: `produto-${Date.now()}` })
+        .select()
+        .single();
+      if (data) setProdutos((prev) => [data as DbProduct, ...(prev ?? [])]);
+    } else if (editId) {
+      await supabase.from("products").update(payload).eq("id", editId);
+      setProdutos((prev) => prev?.map((p) => (p.id === editId ? { ...p, ...payload } : p)) ?? null);
+    }
+
+    setSalvando(false);
+    cancelar();
   };
 
   if (produtos === null) return <p className="text-sm text-muted-foreground">Carregando…</p>;
@@ -180,8 +244,9 @@ function ProdutosTab() {
       <div className="mb-4 flex justify-end">
         <button
           type="button"
-          onClick={adicionar}
-          className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-all duration-300 hover:brightness-110"
+          onClick={iniciarNovo}
+          disabled={editId !== null}
+          className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-all duration-300 hover:brightness-110 disabled:opacity-50"
         >
           <Plus className="size-4" />
           Adicionar produto
@@ -189,9 +254,10 @@ function ProdutosTab() {
       </div>
 
       <div className="overflow-x-auto rounded-2xl border border-border">
-        <table className="w-full min-w-[760px] text-left text-sm">
+        <table className="w-full min-w-[820px] text-left text-sm">
           <thead>
             <tr className="border-b border-border bg-surface text-xs uppercase tracking-[0.12em] text-muted-foreground">
+              <th className="px-5 py-3 font-medium">Imagem</th>
               <th className="px-5 py-3 font-medium">Produto</th>
               <th className="px-5 py-3 font-medium">Categoria</th>
               <th className="px-5 py-3 font-medium">Preço</th>
@@ -201,88 +267,212 @@ function ProdutosTab() {
             </tr>
           </thead>
           <tbody>
-            {produtos.map((p) => (
-              <tr key={p.id} className="border-b border-border last:border-0 hover:bg-surface/60">
-                <td className="px-5 py-3.5">
-                  <input
-                    value={p.name}
-                    onChange={(e) => editarLocal(p.id, { name: e.target.value })}
-                    onBlur={(e) => salvarCampo(p.id, { name: e.target.value })}
-                    className="w-full rounded-lg border border-transparent bg-transparent px-1 py-0.5 font-medium outline-none focus:border-primary/50 focus:bg-background"
-                  />
-                  <input
-                    value={p.brand}
-                    onChange={(e) => editarLocal(p.id, { brand: e.target.value })}
-                    onBlur={(e) => salvarCampo(p.id, { brand: e.target.value })}
-                    className="mt-1 w-full rounded-lg border border-transparent bg-transparent px-1 py-0.5 text-xs text-muted-foreground outline-none focus:border-primary/50 focus:bg-background"
-                  />
-                </td>
-                <td className="px-5 py-3.5">
-                  <select
-                    value={p.category}
-                    onChange={(e) => {
-                      editarLocal(p.id, { category: e.target.value });
-                      salvarCampo(p.id, { category: e.target.value });
-                    }}
-                    className="rounded-lg border border-border bg-background px-2 py-1 text-sm outline-none"
-                  >
-                    {produtoCategorias.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
-                      </option>
-                    ))}
-                  </select>
-                </td>
-                <td className="px-5 py-3.5">
-                  <input
-                    type="number"
-                    value={p.price}
-                    onChange={(e) => editarLocal(p.id, { price: Number(e.target.value) || 0 })}
-                    onBlur={(e) => salvarCampo(p.id, { price: Number(e.target.value) || 0 })}
-                    className="w-24 rounded-lg border border-input bg-background px-2 py-1 text-sm outline-none"
-                  />
-                </td>
-                <td className="px-5 py-3.5">
-                  <input
-                    type="number"
-                    value={p.stock}
-                    onChange={(e) => editarLocal(p.id, { stock: Number(e.target.value) || 0 })}
-                    onBlur={(e) => salvarCampo(p.id, { stock: Number(e.target.value) || 0 })}
-                    className="w-20 rounded-lg border border-input bg-background px-2 py-1 text-sm outline-none"
-                  />
-                </td>
-                <td className="px-5 py-3.5">
-                  <button
-                    type="button"
-                    onClick={() => alternarAtivo(p)}
-                    className={cn(
-                      "rounded-full border px-2.5 py-1 text-xs font-medium",
-                      p.is_active
-                        ? "border-primary/40 bg-primary/10 text-primary"
-                        : "border-border bg-background text-muted-foreground",
+            {editId === "__novo__" && rascunho ? (
+              <ProdutoLinhaEdicao
+                rascunho={rascunho}
+                setRascunho={setRascunho}
+                imagemArquivo={imagemArquivo}
+                setImagemArquivo={setImagemArquivo}
+                imagemAtual={null}
+                salvando={salvando}
+                onSalvar={salvar}
+                onCancelar={cancelar}
+              />
+            ) : null}
+            {produtos.map((p) =>
+              editId === p.id && rascunho ? (
+                <ProdutoLinhaEdicao
+                  key={p.id}
+                  rascunho={rascunho}
+                  setRascunho={setRascunho}
+                  imagemArquivo={imagemArquivo}
+                  setImagemArquivo={setImagemArquivo}
+                  imagemAtual={p.image_url}
+                  salvando={salvando}
+                  onSalvar={salvar}
+                  onCancelar={cancelar}
+                />
+              ) : (
+                <tr key={p.id} className="border-b border-border last:border-0 hover:bg-surface/60">
+                  <td className="px-5 py-3.5">
+                    {p.image_url ? (
+                      <img src={p.image_url} alt={p.name} className="size-12 rounded-lg object-cover" />
+                    ) : (
+                      <span className="grid size-12 place-items-center rounded-lg border border-dashed border-border text-[10px] text-muted-foreground">
+                        sem foto
+                      </span>
                     )}
-                  >
-                    {p.is_active ? "Ativo" : "Inativo"}
-                  </button>
-                </td>
-                <td className="px-5 py-3.5">
-                  <div className="flex items-center justify-end gap-2">
-                    <button
-                      type="button"
-                      onClick={() => remover(p.id)}
-                      className="grid size-8 place-items-center rounded-lg border border-border text-muted-foreground transition-colors hover:border-red-400/50 hover:text-red-400"
-                      aria-label="Remover produto"
+                  </td>
+                  <td className="px-5 py-3.5">
+                    <p className="font-medium">{p.name}</p>
+                    <p className="text-xs text-muted-foreground">{p.brand}</p>
+                  </td>
+                  <td className="px-5 py-3.5 text-muted-foreground">{p.category}</td>
+                  <td className="px-5 py-3.5 tabular-nums">{formatPrice(p.price)}</td>
+                  <td className="px-5 py-3.5 tabular-nums">{p.stock}</td>
+                  <td className="px-5 py-3.5">
+                    <span
+                      className={cn(
+                        "rounded-full border px-2.5 py-1 text-xs font-medium",
+                        p.is_active
+                          ? "border-primary/40 bg-primary/10 text-primary"
+                          : "border-border bg-background text-muted-foreground",
+                      )}
                     >
-                      <Trash2 className="size-3.5" />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
+                      {p.is_active ? "Ativo" : "Inativo"}
+                    </span>
+                  </td>
+                  <td className="px-5 py-3.5">
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => iniciarEdicao(p)}
+                        disabled={editId !== null}
+                        className="grid size-8 place-items-center rounded-lg border border-border text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary disabled:opacity-50"
+                        aria-label="Editar produto"
+                      >
+                        <Pencil className="size-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => remover(p.id)}
+                        disabled={editId !== null}
+                        className="grid size-8 place-items-center rounded-lg border border-border text-muted-foreground transition-colors hover:border-red-400/50 hover:text-red-400 disabled:opacity-50"
+                        aria-label="Remover produto"
+                      >
+                        <Trash2 className="size-3.5" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ),
+            )}
           </tbody>
         </table>
       </div>
     </div>
+  );
+}
+
+function ProdutoLinhaEdicao({
+  rascunho,
+  setRascunho,
+  imagemArquivo,
+  setImagemArquivo,
+  imagemAtual,
+  salvando,
+  onSalvar,
+  onCancelar,
+}: {
+  rascunho: Rascunho;
+  setRascunho: (r: Rascunho) => void;
+  imagemArquivo: File | null;
+  setImagemArquivo: (f: File | null) => void;
+  imagemAtual: string | null;
+  salvando: boolean;
+  onSalvar: () => void;
+  onCancelar: () => void;
+}) {
+  const preview = imagemArquivo ? URL.createObjectURL(imagemArquivo) : imagemAtual;
+
+  return (
+    <tr className="border-b border-border bg-primary/5">
+      <td className="px-5 py-3.5">
+        <label className="grid size-12 cursor-pointer place-items-center overflow-hidden rounded-lg border border-dashed border-primary/50 text-[10px] text-muted-foreground hover:border-primary">
+          {preview ? (
+            <img src={preview} alt="" className="size-full object-cover" />
+          ) : (
+            <ImagePlus className="size-4 text-primary" />
+          )}
+          <input
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => setImagemArquivo(e.target.files?.[0] ?? null)}
+          />
+        </label>
+      </td>
+      <td className="px-5 py-3.5">
+        <input
+          value={rascunho.name}
+          onChange={(e) => setRascunho({ ...rascunho, name: e.target.value })}
+          placeholder="Nome do produto"
+          autoFocus
+          className="w-full rounded-lg border border-input bg-background px-2 py-1 font-medium outline-none"
+        />
+        <input
+          value={rascunho.brand}
+          onChange={(e) => setRascunho({ ...rascunho, brand: e.target.value })}
+          placeholder="Marca"
+          className="mt-1 w-full rounded-lg border border-input bg-background px-2 py-1 text-xs outline-none"
+        />
+      </td>
+      <td className="px-5 py-3.5">
+        <select
+          value={rascunho.category}
+          onChange={(e) => setRascunho({ ...rascunho, category: e.target.value })}
+          className="rounded-lg border border-border bg-background px-2 py-1 text-sm outline-none"
+        >
+          {produtoCategorias.map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
+        </select>
+      </td>
+      <td className="px-5 py-3.5">
+        <input
+          type="number"
+          value={rascunho.price}
+          onChange={(e) => setRascunho({ ...rascunho, price: Number(e.target.value) || 0 })}
+          className="w-24 rounded-lg border border-input bg-background px-2 py-1 text-sm outline-none"
+        />
+      </td>
+      <td className="px-5 py-3.5">
+        <input
+          type="number"
+          value={rascunho.stock}
+          onChange={(e) => setRascunho({ ...rascunho, stock: Number(e.target.value) || 0 })}
+          className="w-20 rounded-lg border border-input bg-background px-2 py-1 text-sm outline-none"
+        />
+      </td>
+      <td className="px-5 py-3.5">
+        <button
+          type="button"
+          onClick={() => setRascunho({ ...rascunho, is_active: !rascunho.is_active })}
+          className={cn(
+            "rounded-full border px-2.5 py-1 text-xs font-medium",
+            rascunho.is_active
+              ? "border-primary/40 bg-primary/10 text-primary"
+              : "border-border bg-background text-muted-foreground",
+          )}
+        >
+          {rascunho.is_active ? "Ativo" : "Inativo"}
+        </button>
+      </td>
+      <td className="px-5 py-3.5">
+        <div className="flex items-center justify-end gap-2">
+          <button
+            type="button"
+            onClick={onSalvar}
+            disabled={salvando || !rascunho.name.trim()}
+            className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-all duration-300 hover:brightness-110 disabled:opacity-50"
+          >
+            <Check className="size-3.5" />
+            {salvando ? "Salvando…" : "Aplicar"}
+          </button>
+          <button
+            type="button"
+            onClick={onCancelar}
+            disabled={salvando}
+            className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:border-red-400/50 hover:text-red-400 disabled:opacity-50"
+          >
+            <X className="size-3.5" />
+            Cancelar
+          </button>
+        </div>
+      </td>
+    </tr>
   );
 }
 

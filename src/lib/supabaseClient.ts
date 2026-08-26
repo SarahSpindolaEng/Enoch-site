@@ -42,4 +42,5 @@ export type DbProduct = {
   colors: { name: string; value: string }[];
   stock: number;
   is_active: boolean;
+  image_url: string | null;
 };
