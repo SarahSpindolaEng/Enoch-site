@@ -38,6 +38,7 @@ export function Perfil() {
     supabase
       .from("orders")
       .select("id, status, total, created_at, order_items(product_name, quantity, unit_price)")
+      .eq("user_id", user.id)
       .order("created_at", { ascending: false })
       .then(({ data }) => {
         if (active) setPedidos((data as Pedido[] | null) ?? []);
