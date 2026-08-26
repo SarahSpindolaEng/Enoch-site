@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Heart, LogOut, MapPin, Package, ShieldCheck, ShoppingBag, User as UserIcon } from "lucide-react";
 import { Reveal } from "@/components/site/Reveal";
+import { ContaSeguranca } from "@/components/site/ContaSeguranca";
 import { useAuth } from "@/lib/auth";
 import { useAdminAuth } from "@/lib/adminAuth";
 import { useCart } from "@/lib/cart";
@@ -156,6 +157,13 @@ export function Perfil() {
           <div className="mt-4 flex items-start gap-3 rounded-2xl border border-border bg-surface p-5 text-sm text-muted-foreground">
             <MapPin className="mt-0.5 size-4 shrink-0 text-primary" />
             Endereço ainda não cadastrado.
+          </div>
+        </Reveal>
+
+        <Reveal className="mt-10">
+          <h2 className="text-lg font-semibold">Conta e segurança</h2>
+          <div className="mt-4">
+            <ContaSeguranca />
           </div>
         </Reveal>
       </section>

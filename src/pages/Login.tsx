@@ -1,9 +1,10 @@
 import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
-import { Lock, Mail, ShieldAlert, User as UserIcon } from "lucide-react";
+import { KeyRound, Lock, Mail, ShieldAlert, ShieldCheck, User as UserIcon } from "lucide-react";
 import { Reveal } from "@/components/site/Reveal";
 import { EnochMark } from "@/components/site/EnochLogo";
 import { useAuth } from "@/lib/auth";
+import { supabase } from "@/lib/supabaseClient";
 import { vezesVazada } from "@/lib/pwnedPassword";
 import { cn } from "@/lib/utils";
 
@@ -15,8 +16,33 @@ export function Login() {
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
-  const { signIn, signUp } = useAuth();
+  const [mfaPendente, setMfaPendente] = useState(false);
+  const [codigoMfa, setCodigoMfa] = useState("");
+  const [sugerir2fa, setSugerir2fa] = useState(false);
+  const { signIn, signUp, verifyMfaCode } = useAuth();
   const navigate = useNavigate();
+
+  // Depois de qualquer login/cadastro concluído: se a conta ainda não tem
+  // 2FA, sugere ativar em vez de já mandar direto pro perfil.
+  const seguirParaPerfilOuSugerir2fa = async () => {
+    const { data } = await supabase.auth.mfa.listFactors();
+    const tem2fa = (data?.totp.length ?? 0) > 0;
+    if (tem2fa) {
+      navigate("/perfil");
+    } else {
+      setSugerir2fa(true);
+    }
+  };
+
+  const handleVerifyMfa = async (e: FormEvent) => {
+    e.preventDefault();
+    setErro(null);
+    setCarregando(true);
+    const { error } = await verifyMfaCode(codigoMfa);
+    setCarregando(false);
+    if (error) return setErro(error);
+    navigate("/perfil");
+  };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -47,15 +73,53 @@ export function Login() {
         setModo("entrar");
         return;
       }
-      navigate("/perfil");
+      // Conta acabada de criar nunca tem 2FA ainda — sugere de cara.
+      setSugerir2fa(true);
       return;
     }
 
-    const { error } = await signIn(email, senha);
+    const { error, mfaRequired } = await signIn(email, senha);
     setCarregando(false);
     if (error) return setErro(error);
-    navigate("/perfil");
+    if (mfaRequired) {
+      setMfaPendente(true);
+      return;
+    }
+    void seguirParaPerfilOuSugerir2fa();
   };
+
+  if (sugerir2fa) {
+    return (
+      <div className="fixed inset-0 z-[100] grid place-items-center bg-background/85 px-5 backdrop-blur-sm">
+        <div className="w-full max-w-sm rounded-3xl border border-border bg-surface p-8 text-center">
+          <span className="mx-auto grid size-12 place-items-center rounded-full bg-primary/12 text-primary">
+            <ShieldCheck className="size-6" />
+          </span>
+          <h2 className="mt-4 text-lg font-semibold">Proteja sua conta</h2>
+          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+            Sua conta ainda não tem autenticação em duas etapas (2FA). Com ela ativa, mesmo que
+            alguém descubra sua senha, não consegue entrar sem o código do seu celular.
+          </p>
+          <div className="mt-6 flex flex-col gap-2">
+            <button
+              type="button"
+              onClick={() => navigate("/perfil")}
+              className="rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition-all duration-300 hover:brightness-110"
+            >
+              Ativar agora
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate("/perfil")}
+              className="text-xs text-muted-foreground hover:text-foreground"
+            >
+              Agora não
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative flex min-h-screen items-center justify-center px-5 pb-20 pt-32 sm:px-8">
@@ -67,27 +131,79 @@ export function Login() {
             <EnochMark className="h-8" />
           </div>
 
-          <div className="mt-6 flex rounded-full border border-border bg-background p-1 text-sm">
-            {(["entrar", "criar"] as const).map((m) => (
+          {mfaPendente ? (
+            <form className="mt-8 grid gap-4" onSubmit={handleVerifyMfa}>
+              <div className="text-center">
+                <span className="mx-auto grid size-11 place-items-center rounded-full bg-primary/12 text-primary">
+                  <KeyRound className="size-5" />
+                </span>
+                <h2 className="mt-3 text-base font-semibold">Autenticação em duas etapas</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Digite o código de 6 dígitos do seu app autenticador.
+                </p>
+              </div>
+
+              <input
+                required
+                autoFocus
+                inputMode="numeric"
+                pattern="[0-9]{6}"
+                maxLength={6}
+                value={codigoMfa}
+                onChange={(e) => setCodigoMfa(e.target.value.replace(/\D/g, ""))}
+                placeholder="000000"
+                className="w-full rounded-xl border border-input bg-background px-4 py-3 text-center text-lg tracking-[0.4em] outline-none focus:border-primary/60"
+              />
+
+              {erro ? (
+                <p className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                  {erro}
+                </p>
+              ) : null}
+
               <button
-                key={m}
+                type="submit"
+                disabled={carregando || codigoMfa.length !== 6}
+                className="rounded-full bg-primary px-7 py-3.5 text-sm font-semibold text-primary-foreground transition-all duration-300 hover:brightness-110 disabled:opacity-60"
+              >
+                {carregando ? "Verificando…" : "Confirmar"}
+              </button>
+
+              <button
                 type="button"
                 onClick={() => {
-                  setModo(m);
+                  setMfaPendente(false);
+                  setCodigoMfa("");
                   setErro(null);
-                  setAviso(null);
                 }}
-                className={cn(
-                  "flex-1 rounded-full py-2 font-medium transition-all duration-300",
-                  modo === m ? "bg-primary text-primary-foreground" : "text-muted-foreground",
-                )}
+                className="text-center text-xs text-muted-foreground hover:text-foreground"
               >
-                {m === "entrar" ? "Entrar" : "Criar conta"}
+                ← Voltar
               </button>
-            ))}
-          </div>
+            </form>
+          ) : (
+            <>
+              <div className="mt-6 flex rounded-full border border-border bg-background p-1 text-sm">
+                {(["entrar", "criar"] as const).map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => {
+                      setModo(m);
+                      setErro(null);
+                      setAviso(null);
+                    }}
+                    className={cn(
+                      "flex-1 rounded-full py-2 font-medium transition-all duration-300",
+                      modo === m ? "bg-primary text-primary-foreground" : "text-muted-foreground",
+                    )}
+                  >
+                    {m === "entrar" ? "Entrar" : "Criar conta"}
+                  </button>
+                ))}
+              </div>
 
-          <form className="mt-6 grid gap-4" onSubmit={handleSubmit}>
+              <form className="mt-6 grid gap-4" onSubmit={handleSubmit}>
             {modo === "criar" ? (
               <label className="block">
                 <span className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
@@ -185,6 +301,8 @@ export function Login() {
               <li>Evite senhas óbvias (nome, data de nascimento, sequências como "123456").</li>
             </ul>
           </div>
+            </>
+          )}
         </div>
       </Reveal>
     </div>

@@ -4,13 +4,14 @@ import { supabase } from "@/lib/supabaseClient";
 
 type User = { id: string; name: string; email: string };
 
-type AuthResult = { error: string | null; needsEmailConfirmation?: boolean };
+type AuthResult = { error: string | null; needsEmailConfirmation?: boolean; mfaRequired?: boolean };
 
 type AuthContextValue = {
   user: User | null;
   loading: boolean;
   signUp: (email: string, password: string, name: string) => Promise<AuthResult>;
   signIn: (email: string, password: string) => Promise<AuthResult>;
+  verifyMfaCode: (code: string) => Promise<{ error: string | null }>;
   logout: () => Promise<void>;
 };
 
@@ -25,6 +26,15 @@ function sessionToUser(session: Session | null): User | null {
     email: email ?? "",
     name: name || email?.split("@")[0] || "Cliente",
   };
+}
+
+// Com 2FA ativo, o login por senha só deixa a sessão no nível "aal1" —
+// currentLevel só bate com nextLevel depois do código do app autenticador
+// ser confirmado. Sem 2FA na conta, os dois níveis já vêm iguais.
+async function sessionEstaCompleta(session: Session | null): Promise<boolean> {
+  if (!session) return false;
+  const { data } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+  return !data || data.currentLevel === data.nextLevel;
 }
 
 // Traduz as mensagens de erro do Supabase Auth (sempre em inglês) para
@@ -48,16 +58,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setUser(sessionToUser(data.session));
+    let active = true;
+
+    async function sincronizar(session: Session | null) {
+      const completa = await sessionEstaCompleta(session);
+      if (!active) return;
+      setUser(completa ? sessionToUser(session) : null);
       setLoading(false);
-    });
+    }
+
+    supabase.auth.getSession().then(({ data }) => sincronizar(data.session));
 
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(sessionToUser(session));
+      void sincronizar(session);
     });
 
-    return () => sub.subscription.unsubscribe();
+    return () => {
+      active = false;
+      sub.subscription.unsubscribe();
+    };
   }, []);
 
   const signUp: AuthContextValue["signUp"] = async (email, password, name) => {
@@ -76,6 +95,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signIn: AuthContextValue["signIn"] = async (email, password) => {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) return { error: traduzErro(error.message) };
+    if (await sessionEstaCompleta(data.session)) {
+      setUser(sessionToUser(data.session));
+      return { error: null };
+    }
+    // Conta tem 2FA ativo: senha certa, mas ainda falta o código do app
+    // autenticador antes de considerar a pessoa logada de verdade.
+    return { error: null, mfaRequired: true };
+  };
+
+  const verifyMfaCode: AuthContextValue["verifyMfaCode"] = async (code) => {
+    const { data: fatores, error: erroFatores } = await supabase.auth.mfa.listFactors();
+    const fator = fatores?.totp[0];
+    if (erroFatores || !fator) return { error: "Nenhum código de autenticação pendente. Tente entrar de novo." };
+
+    const { error } = await supabase.auth.mfa.challengeAndVerify({ factorId: fator.id, code });
+    if (error) return { error: "Código inválido. Confira o app autenticador e tente de novo." };
+
+    const { data } = await supabase.auth.getSession();
     setUser(sessionToUser(data.session));
     return { error: null };
   };
@@ -85,7 +122,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, signUp, signIn, logout }}>
+    <AuthContext.Provider value={{ user, loading, signUp, signIn, verifyMfaCode, logout }}>
       {children}
     </AuthContext.Provider>
   );
