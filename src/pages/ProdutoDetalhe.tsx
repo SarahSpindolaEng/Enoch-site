@@ -1,6 +1,6 @@
 import { Link, Navigate, useParams } from "react-router-dom";
 import { useState } from "react";
-import { ArrowLeft, Check, Heart, ShoppingBag, Truck } from "lucide-react";
+import { ArrowLeft, Check, Heart, ShoppingBag } from "lucide-react";
 import { Reveal } from "@/components/site/Reveal";
 import { ProductCard } from "@/components/site/ProductCard";
 import { ProductArt } from "@/components/site/ProductArt";
@@ -139,10 +139,6 @@ export function ProdutoDetalhe() {
                 </button>
               </div>
 
-              <div className="mt-6 flex items-center gap-2 text-xs text-muted-foreground">
-                <Truck className="size-4 text-primary" />
-                Frete grátis · Entrega em até 3 dias úteis
-              </div>
             </div>
           </Reveal>
         </div>
