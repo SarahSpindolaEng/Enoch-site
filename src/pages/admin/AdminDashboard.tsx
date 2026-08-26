@@ -166,6 +166,7 @@ function ProdutosTab() {
   const [rascunho, setRascunho] = useState<Rascunho | null>(null);
   const [imagemArquivo, setImagemArquivo] = useState<File | null>(null);
   const [salvando, setSalvando] = useState(false);
+  const [desfazer, setDesfazer] = useState<{ produto: DbProduct; timeoutId: number } | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -181,10 +182,23 @@ function ProdutosTab() {
     };
   }, []);
 
-  const remover = async (id: string) => {
-    setProdutos((prev) => prev?.filter((p) => p.id !== id) ?? null);
-    await supabase.from("products").delete().eq("id", id);
-    invalidateProducts();
+  // Exclusão com desfazer: some da lista na hora, mas só apaga do banco de
+  // verdade alguns segundos depois — dá tempo de arrepender sem perder nada.
+  const remover = (produto: DbProduct) => {
+    setProdutos((prev) => prev?.filter((p) => p.id !== produto.id) ?? null);
+    const timeoutId = window.setTimeout(async () => {
+      await supabase.from("products").delete().eq("id", produto.id);
+      invalidateProducts();
+      setDesfazer((atual) => (atual?.produto.id === produto.id ? null : atual));
+    }, 5000);
+    setDesfazer({ produto, timeoutId });
+  };
+
+  const desfazerExclusao = () => {
+    if (!desfazer) return;
+    window.clearTimeout(desfazer.timeoutId);
+    setProdutos((prev) => [desfazer.produto, ...(prev ?? [])]);
+    setDesfazer(null);
   };
 
   const iniciarEdicao = (p: DbProduct) => {
@@ -243,6 +257,21 @@ function ProdutosTab() {
 
   return (
     <div>
+      {desfazer ? (
+        <div className="mb-4 flex items-center justify-between gap-4 rounded-2xl border border-primary/40 bg-primary/10 px-5 py-3 text-sm">
+          <span>
+            <strong>{desfazer.produto.name}</strong> removido.
+          </span>
+          <button
+            type="button"
+            onClick={desfazerExclusao}
+            className="shrink-0 rounded-full bg-primary px-4 py-1.5 text-xs font-semibold text-primary-foreground transition-all duration-300 hover:brightness-110"
+          >
+            Desfazer
+          </button>
+        </div>
+      ) : null}
+
       <div className="mb-4 flex justify-end">
         <button
           type="button"
@@ -337,7 +366,7 @@ function ProdutosTab() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => remover(p.id)}
+                        onClick={() => remover(p)}
                         disabled={editId !== null}
                         className="grid size-8 place-items-center rounded-lg border border-border text-muted-foreground transition-colors hover:border-red-400/50 hover:text-red-400 disabled:opacity-50"
                         aria-label="Remover produto"
