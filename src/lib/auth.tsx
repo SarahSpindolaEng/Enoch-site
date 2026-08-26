@@ -9,8 +9,8 @@ type AuthResult = { error: string | null; needsEmailConfirmation?: boolean; mfaR
 type AuthContextValue = {
   user: User | null;
   loading: boolean;
-  signUp: (email: string, password: string, name: string) => Promise<AuthResult>;
-  signIn: (email: string, password: string) => Promise<AuthResult>;
+  signUp: (email: string, password: string, name: string, captchaToken: string) => Promise<AuthResult>;
+  signIn: (email: string, password: string, captchaToken: string) => Promise<AuthResult>;
   verifyMfaCode: (code: string) => Promise<{ error: string | null }>;
   logout: () => Promise<void>;
 };
@@ -50,6 +50,8 @@ function traduzErro(message: string): string {
     return "Confirme seu e-mail antes de entrar — enviamos um link para sua caixa de entrada.";
   if (m.includes("rate limit") || m.includes("too many"))
     return "Muitas tentativas seguidas. Aguarde um instante e tente de novo.";
+  if (m.includes("captcha"))
+    return "Não foi possível confirmar que você não é um robô. Recarregue a página e tente de novo.";
   return "Algo deu errado. Tente novamente em instantes.";
 }
 
@@ -79,11 +81,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const signUp: AuthContextValue["signUp"] = async (email, password, name) => {
+  const signUp: AuthContextValue["signUp"] = async (email, password, name, captchaToken) => {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { name: name.trim() } },
+      options: { data: { name: name.trim() }, captchaToken },
     });
     if (error) return { error: traduzErro(error.message) };
     // Se o projeto exige confirmação de e-mail, a sessão vem nula aqui —
@@ -92,8 +94,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: null, needsEmailConfirmation: !data.session };
   };
 
-  const signIn: AuthContextValue["signIn"] = async (email, password) => {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  const signIn: AuthContextValue["signIn"] = async (email, password, captchaToken) => {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+      options: { captchaToken },
+    });
     if (error) return { error: traduzErro(error.message) };
     if (await sessionEstaCompleta(data.session)) {
       setUser(sessionToUser(data.session));

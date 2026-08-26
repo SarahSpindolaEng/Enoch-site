@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { KeyRound, Lock, Mail, ShieldAlert, ShieldCheck, User as UserIcon } from "lucide-react";
 import { Reveal } from "@/components/site/Reveal";
 import { EnochMark } from "@/components/site/EnochLogo";
+import { Turnstile } from "@/components/site/Turnstile";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/lib/supabaseClient";
 import { vezesVazada } from "@/lib/pwnedPassword";
@@ -19,6 +20,8 @@ export function Login() {
   const [mfaPendente, setMfaPendente] = useState(false);
   const [codigoMfa, setCodigoMfa] = useState("");
   const [sugerir2fa, setSugerir2fa] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [turnstileKey, setTurnstileKey] = useState(0);
   const { signIn, signUp, verifyMfaCode } = useAuth();
   const navigate = useNavigate();
 
@@ -48,6 +51,10 @@ export function Login() {
     e.preventDefault();
     setErro(null);
     setAviso(null);
+
+    if (!captchaToken) {
+      return setErro("Aguarde a verificação de segurança terminar de carregar e tente de novo.");
+    }
     setCarregando(true);
 
     if (modo === "criar") {
@@ -63,8 +70,10 @@ export function Login() {
         );
       }
 
-      const { error, needsEmailConfirmation } = await signUp(email, senha, nome);
+      const { error, needsEmailConfirmation } = await signUp(email, senha, nome, captchaToken);
       setCarregando(false);
+      setCaptchaToken(null);
+      setTurnstileKey((k) => k + 1);
       if (error) return setErro(error);
       if (needsEmailConfirmation) {
         setAviso(
@@ -78,8 +87,10 @@ export function Login() {
       return;
     }
 
-    const { error, mfaRequired } = await signIn(email, senha);
+    const { error, mfaRequired } = await signIn(email, senha, captchaToken);
     setCarregando(false);
+    setCaptchaToken(null);
+    setTurnstileKey((k) => k + 1);
     if (error) return setErro(error);
     if (mfaRequired) {
       setMfaPendente(true);
@@ -257,6 +268,10 @@ export function Login() {
               </div>
             </label>
 
+            <div className="flex justify-center">
+              <Turnstile key={turnstileKey} onToken={setCaptchaToken} />
+            </div>
+
             {erro ? (
               <p className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
                 {erro}
@@ -271,7 +286,7 @@ export function Login() {
 
             <button
               type="submit"
-              disabled={carregando}
+              disabled={carregando || !captchaToken}
               className="mt-2 rounded-full bg-primary px-7 py-3.5 text-sm font-semibold text-primary-foreground transition-all duration-300 hover:brightness-110 hover:shadow-[0_0_40px_-10px_var(--primary)] active:scale-[0.99] disabled:opacity-60"
             >
               {carregando
