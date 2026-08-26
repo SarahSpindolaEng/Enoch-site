@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Heart, LogOut, MapPin, Package, ShoppingBag, User as UserIcon } from "lucide-react";
+import { Heart, LogOut, MapPin, Package, ShieldCheck, ShoppingBag, User as UserIcon } from "lucide-react";
 import { Reveal } from "@/components/site/Reveal";
 import { useAuth } from "@/lib/auth";
+import { useAdminAuth } from "@/lib/adminAuth";
 import { useCart } from "@/lib/cart";
 import { supabase } from "@/lib/supabaseClient";
 import { formatPrice } from "@/lib/products";
@@ -26,6 +27,7 @@ const statusLabel: Record<string, string> = {
 
 export function Perfil() {
   const { user, logout } = useAuth();
+  const { isAdmin } = useAdminAuth();
   const { cartCount, wishlistCount } = useCart();
   const [pedidos, setPedidos] = useState<Pedido[] | null>(null);
 
@@ -80,14 +82,25 @@ export function Perfil() {
             <h1 className="mt-2 text-3xl font-bold sm:text-4xl">Olá, {user.name}.</h1>
             <p className="mt-1 text-sm text-muted-foreground">{user.email}</p>
           </div>
-          <button
-            type="button"
-            onClick={() => void logout()}
-            className="inline-flex items-center gap-2 rounded-full border border-border px-5 py-2.5 text-sm text-muted-foreground transition-all duration-300 hover:border-primary/40 hover:text-primary"
-          >
-            <LogOut className="size-4" />
-            Sair
-          </button>
+          <div className="flex items-center gap-3">
+            {isAdmin ? (
+              <Link
+                to="/admin"
+                className="inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-5 py-2.5 text-sm text-primary transition-all duration-300 hover:brightness-110"
+              >
+                <ShieldCheck className="size-4" />
+                Painel administrativo
+              </Link>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => void logout()}
+              className="inline-flex items-center gap-2 rounded-full border border-border px-5 py-2.5 text-sm text-muted-foreground transition-all duration-300 hover:border-primary/40 hover:text-primary"
+            >
+              <LogOut className="size-4" />
+              Sair
+            </button>
+          </div>
         </Reveal>
 
         <div className="mt-10 grid gap-4 sm:grid-cols-3">
