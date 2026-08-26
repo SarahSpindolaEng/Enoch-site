@@ -55,7 +55,7 @@ export function AdminLogin() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Lucianoenochtech@gmail.com"
+                  placeholder="seu@email.com"
                   className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
                 />
               </div>
