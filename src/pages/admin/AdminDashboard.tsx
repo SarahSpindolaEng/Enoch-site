@@ -14,7 +14,7 @@ import {
 import { EnochMark } from "@/components/site/EnochLogo";
 import { useAdminAuth } from "@/lib/adminAuth";
 import { supabase, type DbProduct } from "@/lib/supabaseClient";
-import { categories, formatPrice } from "@/lib/products";
+import { categories, formatPrice, invalidateProducts } from "@/lib/products";
 import { cn } from "@/lib/utils";
 
 type Profile = { id: string; name: string | null; email: string | null };
@@ -181,9 +181,10 @@ function ProdutosTab() {
     };
   }, []);
 
-  const remover = (id: string) => {
+  const remover = async (id: string) => {
     setProdutos((prev) => prev?.filter((p) => p.id !== id) ?? null);
-    void supabase.from("products").delete().eq("id", id);
+    await supabase.from("products").delete().eq("id", id);
+    invalidateProducts();
   };
 
   const iniciarEdicao = (p: DbProduct) => {
@@ -233,6 +234,7 @@ function ProdutosTab() {
       setProdutos((prev) => prev?.map((p) => (p.id === editId ? { ...p, ...payload } : p)) ?? null);
     }
 
+    invalidateProducts();
     setSalvando(false);
     cancelar();
   };

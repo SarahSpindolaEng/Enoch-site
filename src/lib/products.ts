@@ -85,6 +85,15 @@ export function useProducts(): Product[] | null {
   return cache;
 }
 
+// Chamado pelo painel admin depois de criar/editar/remover um produto —
+// sem isso, quem já tinha a vitrine aberta continuaria vendo os dados
+// antigos até recarregar a página inteira.
+export function invalidateProducts() {
+  cache = null;
+  ouvintes.forEach((f) => f());
+  carregar();
+}
+
 // undefined = ainda carregando, null = não existe, Product = encontrado.
 export function useProduct(slug: string | undefined): Product | null | undefined {
   const produtos = useProducts();
