@@ -153,7 +153,7 @@ export function ProdutoDetalhe() {
           <p className="text-xs uppercase tracking-[0.2em] text-primary">Ficha técnica</p>
           <h2 className="mt-3 text-3xl font-bold sm:text-4xl">Especificações</h2>
         </Reveal>
-        <dl className="mt-10 grid gap-px overflow-hidden rounded-2xl border border-border bg-border sm:grid-cols-2">
+        <dl className="mt-10 grid gap-px overflow-hidden rounded-2xl border border-border bg-background sm:grid-cols-2">
           {product.specs.map((spec, i) => (
             <Reveal key={spec.label} delay={(i % 2) * 70}>
               <div className="grid h-full grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] gap-4 bg-background px-6 py-5">
