@@ -100,38 +100,40 @@ export function Contato() {
         </Reveal>
 
         <Reveal delay={120} className="min-w-0 lg:self-end">
-          <p className="text-xs uppercase tracking-[0.2em] text-primary">Suporte pelo site</p>
-          <h2 className="mt-2 text-lg font-semibold">Fale direto com a gente</h2>
-          {!user ? (
-            <div className="flex h-full flex-col items-start justify-center rounded-3xl border border-border bg-surface p-8">
-              <p className="text-lg font-semibold">Entre na sua conta para falar com o suporte</p>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Pra enviar uma mensagem e acompanhar a resposta no chat do site, você precisa estar
-                logado.
-              </p>
-              <Link
-                to="/login"
-                className="mt-6 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition-all duration-300 hover:brightness-110"
-              >
-                Entrar / criar conta
-              </Link>
-            </div>
-          ) : enviado ? (
-            <div className="flex h-full flex-col items-start justify-center rounded-3xl border border-primary/30 bg-surface p-8">
-              <p className="text-lg font-semibold">Mensagem enviada ✓</p>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Já abrimos um chat com o suporte aqui mesmo no site, no bolão do canto da tela — é
-                só continuar a conversa por lá quando quiser.
-              </p>
-            </div>
-          ) : (
-            <form onSubmit={enviar} className="rounded-3xl border border-border bg-surface p-6 sm:p-8">
-              <p className="mb-5 text-xs leading-relaxed text-muted-foreground">
-                Ao enviar, abre um chat aqui mesmo no site (bolão no canto da tela) onde você
-                acompanha a resposta e pode continuar a conversa. Suporte pelo site responde em até
-                2 dias úteis.
-              </p>
-              <div className="grid gap-5">
+          <div className="rounded-3xl border border-border bg-surface p-6 sm:p-8">
+            <p className="text-xs uppercase tracking-[0.2em] text-primary">Suporte pelo site</p>
+            <h2 className="mt-2 text-3xl font-bold">Fale direto com a gente</h2>
+
+            {!user ? (
+              <div className="mt-6 flex flex-col items-start">
+                <p className="text-sm font-semibold">Entre na sua conta para falar com o suporte</p>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Pra enviar uma mensagem e acompanhar a resposta no chat do site, você precisa estar
+                  logado.
+                </p>
+                <Link
+                  to="/login"
+                  className="mt-6 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition-all duration-300 hover:brightness-110"
+                >
+                  Entrar / criar conta
+                </Link>
+              </div>
+            ) : enviado ? (
+              <div className="mt-6 flex flex-col items-start">
+                <p className="text-sm font-semibold">Mensagem enviada ✓</p>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Já abrimos um chat com o suporte aqui mesmo no site, no bolão do canto da tela — é
+                  só continuar a conversa por lá quando quiser.
+                </p>
+              </div>
+            ) : (
+              <form onSubmit={enviar} className="mt-6">
+                <p className="mb-5 text-xs leading-relaxed text-muted-foreground">
+                  Ao enviar, abre um chat aqui mesmo no site (bolão no canto da tela) onde você
+                  acompanha a resposta e pode continuar a conversa. Suporte pelo site responde em até
+                  2 dias úteis.
+                </p>
+                <div className="grid gap-5">
                 <label className="block">
                   <span className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Assunto</span>
                   <input
@@ -166,9 +168,10 @@ export function Contato() {
                 >
                   {enviando ? "Enviando…" : "Enviar mensagem"}
                 </button>
-              </div>
-            </form>
-          )}
+                </div>
+              </form>
+            )}
+          </div>
         </Reveal>
       </section>
     </div>

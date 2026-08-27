@@ -203,13 +203,27 @@ type ContactMessage = {
   status: "novo" | "lido";
   created_at: string;
   user_id: string | null;
+  order_id: string | null;
 };
 type ContactReply = { id: string; sender: "cliente" | "admin"; message: string; created_at: string };
+type PedidoVinculadoItem = {
+  product_name: string;
+  quantity: number;
+  unit_price: number;
+  products: { slug: string }[] | null;
+};
+type PedidoVinculado = {
+  id: string;
+  status: string;
+  created_at: string;
+  order_items: PedidoVinculadoItem[];
+};
 
 function MensagensTab() {
   const [mensagens, setMensagens] = useState<ContactMessage[] | null>(null);
   const [threadAberta, setThreadAberta] = useState<string | null>(null);
   const [respostas, setRespostas] = useState<Record<string, ContactReply[]>>({});
+  const [pedidosVinculados, setPedidosVinculados] = useState<Record<string, PedidoVinculado>>({});
   const [resposta, setResposta] = useState("");
   const [enviando, setEnviando] = useState(false);
 
@@ -237,13 +251,23 @@ function MensagensTab() {
     setThreadAberta(abrindo ? m.id : null);
     setResposta("");
     if (m.status === "novo") marcarLida(m.id);
-    if (!abrindo || respostas[m.id]) return;
-    const { data } = await supabase
-      .from("contact_replies")
-      .select("id, sender, message, created_at")
-      .eq("thread_id", m.id)
-      .order("created_at", { ascending: true });
-    setRespostas((prev) => ({ ...prev, [m.id]: (data as ContactReply[] | null) ?? [] }));
+    if (!abrindo) return;
+    if (!respostas[m.id]) {
+      const { data } = await supabase
+        .from("contact_replies")
+        .select("id, sender, message, created_at")
+        .eq("thread_id", m.id)
+        .order("created_at", { ascending: true });
+      setRespostas((prev) => ({ ...prev, [m.id]: (data as ContactReply[] | null) ?? [] }));
+    }
+    if (m.order_id && !pedidosVinculados[m.order_id]) {
+      const { data } = await supabase
+        .from("orders")
+        .select("id, status, created_at, order_items(product_name, quantity, unit_price, products(slug))")
+        .eq("id", m.order_id)
+        .single();
+      if (data) setPedidosVinculados((prev) => ({ ...prev, [m.order_id as string]: data as PedidoVinculado }));
+    }
   };
 
   const enviarResposta = async (threadId: string) => {
@@ -321,6 +345,49 @@ function MensagensTab() {
             // entra como o primeiro balão da conversa, seguida das
             // respostas em ordem — não só um texto solto acima do chat.
             <div className="mt-4 border-t border-border pt-4">
+              {m.order_id ? (
+                (() => {
+                  const pedido = pedidosVinculados[m.order_id];
+                  if (!pedido) return <p className="mb-3 text-xs text-muted-foreground">Carregando pedido…</p>;
+                  return (
+                    <div className="mb-3 rounded-xl border border-primary/25 bg-primary/[0.06] p-3.5">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-xs font-semibold">Pedido #{pedido.id.slice(0, 8)}</p>
+                        <span
+                          className={cn(
+                            "rounded-full border px-2.5 py-0.5 text-[11px] font-medium",
+                            pedido.status === "entregue"
+                              ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-300"
+                              : "border-amber-400/30 bg-amber-400/10 text-amber-300",
+                          )}
+                        >
+                          {pedido.status === "entregue" ? "Entregue" : "Ainda não entregue"} ·{" "}
+                          {statusLabel[pedido.status] ?? pedido.status}
+                        </span>
+                      </div>
+                      <div className="mt-2 grid gap-1.5">
+                        {pedido.order_items.map((item, i) => (
+                          <div key={i} className="flex items-center justify-between text-xs">
+                            <span className="text-muted-foreground">
+                              {item.quantity}x {item.product_name}
+                            </span>
+                            {item.products?.[0]?.slug ? (
+                              <a
+                                href={`${window.location.pathname}#/produtos/${item.products[0].slug}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="font-medium text-primary hover:brightness-110"
+                              >
+                                Ver no catálogo
+                              </a>
+                            ) : null}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()
+              ) : null}
               <div className="grid gap-2">
                 <div className="max-w-[80%] rounded-xl bg-background px-3.5 py-2 text-xs leading-relaxed text-foreground">
                   {m.message}

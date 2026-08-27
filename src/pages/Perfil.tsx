@@ -396,6 +396,87 @@ function SuporteCartao() {
   );
 }
 
+function SuportePedido({ pedidoId }: { pedidoId: string }) {
+  const { user } = useAuth();
+  const abrirThread = useOpenSupportThread();
+  const [aberto, setAberto] = useState(false);
+  const [message, setMessage] = useState("");
+  const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+
+  const enviar = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+    setErro(null);
+    setEnviando(true);
+    const { data, error } = await supabase
+      .from("contact_messages")
+      .insert({
+        name: user.name,
+        email: user.email,
+        subject: `Pedido #${pedidoId.slice(0, 8)}`,
+        message,
+        user_id: user.id,
+        order_id: pedidoId,
+      })
+      .select("id")
+      .single();
+    setEnviando(false);
+    if (error || !data) return setErro("Não foi possível enviar. Tente novamente.");
+    setMessage("");
+    setAberto(false);
+    abrirThread(data.id as string);
+  };
+
+  if (!aberto) {
+    return (
+      <button
+        type="button"
+        onClick={() => setAberto(true)}
+        className="mt-4 inline-flex items-center gap-1.5 rounded-full border border-border px-4 py-2 text-xs font-medium text-muted-foreground transition-all duration-300 hover:border-primary/40 hover:text-primary"
+      >
+        <MessageCircle className="size-3.5" />
+        Suporte sobre este pedido
+      </button>
+    );
+  }
+
+  return (
+    <form onSubmit={enviar} className="mt-4 grid gap-2.5 rounded-xl border border-border bg-background p-4">
+      <p className="text-xs text-muted-foreground">
+        Conte o que houve com o pedido #{pedidoId.slice(0, 8)} — a conversa já vem com os dados
+        dele pro suporte ver certinho.
+      </p>
+      <textarea
+        required
+        autoFocus
+        rows={3}
+        value={message}
+        onChange={(e) => setMessage(e.target.value)}
+        placeholder="Ex: o produto não chegou, veio com defeito, quero trocar…"
+        className="w-full resize-none rounded-lg border border-input bg-surface px-3 py-2 text-sm outline-none focus:border-primary/60"
+      />
+      {erro ? <p className="text-xs text-destructive">{erro}</p> : null}
+      <div className="flex gap-2">
+        <button
+          type="submit"
+          disabled={enviando || !message.trim()}
+          className="rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground disabled:opacity-60"
+        >
+          {enviando ? "Enviando…" : "Enviar"}
+        </button>
+        <button
+          type="button"
+          onClick={() => setAberto(false)}
+          className="rounded-full border border-border px-4 py-2 text-xs text-muted-foreground hover:text-foreground"
+        >
+          Cancelar
+        </button>
+      </div>
+    </form>
+  );
+}
+
 function PedidoCard({ pedido }: { pedido: Pedido }) {
   const [aberto, setAberto] = useState(false);
   const resumoItens = pedido.order_items.map((i) => i.product_name).join(", ");
@@ -446,6 +527,7 @@ function PedidoCard({ pedido }: { pedido: Pedido }) {
           </div>
 
           <TimelinePedido pedido={pedido} />
+          <SuportePedido pedidoId={pedido.id} />
         </div>
       ) : null}
     </div>
