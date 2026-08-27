@@ -7,6 +7,7 @@ import {
   Heart,
   LogOut,
   MapPin,
+  MessageCircle,
   Package,
   ShieldCheck,
   ShoppingBag,
@@ -16,6 +17,7 @@ import {
 } from "lucide-react";
 import { Reveal } from "@/components/site/Reveal";
 import { ContaSeguranca } from "@/components/site/ContaSeguranca";
+import { useOpenSupportThread } from "@/components/site/SupportChat";
 import { useAuth } from "@/lib/auth";
 import { useAdminAuth } from "@/lib/adminAuth";
 import { useCart } from "@/lib/cart";
@@ -274,6 +276,70 @@ function TimelinePedido({ pedido }: { pedido: Pedido }) {
   );
 }
 
+function SuporteCartao() {
+  const { user } = useAuth();
+  const abrirThread = useOpenSupportThread();
+  const [subject, setSubject] = useState("");
+  const [message, setMessage] = useState("");
+  const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+
+  const enviar = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+    setErro(null);
+    setEnviando(true);
+    const { data, error } = await supabase
+      .from("contact_messages")
+      .insert({ name: user.name, email: user.email, subject, message, user_id: user.id })
+      .select("id")
+      .single();
+    setEnviando(false);
+    if (error || !data) return setErro("Não foi possível enviar. Tente novamente.");
+    setSubject("");
+    setMessage("");
+    abrirThread(data.id as string);
+  };
+
+  return (
+    <form onSubmit={enviar} className="mt-4 grid gap-3 rounded-2xl border border-border bg-surface p-5">
+      <label className="block">
+        <span className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Assunto</span>
+        <input
+          required
+          value={subject}
+          onChange={(e) => setSubject(e.target.value)}
+          placeholder="Como podemos ajudar?"
+          className="mt-1.5 w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm outline-none focus:border-primary/60"
+        />
+      </label>
+      <label className="block">
+        <span className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Mensagem</span>
+        <textarea
+          required
+          rows={3}
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          placeholder="Escreva sua dúvida ou pedido"
+          className="mt-1.5 w-full resize-none rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm outline-none focus:border-primary/60"
+        />
+      </label>
+      {erro ? (
+        <p className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-2.5 text-xs text-destructive">
+          {erro}
+        </p>
+      ) : null}
+      <button
+        type="submit"
+        disabled={enviando}
+        className="w-fit rounded-full bg-primary px-5 py-2 text-xs font-semibold text-primary-foreground transition-all duration-300 hover:brightness-110 disabled:opacity-60"
+      >
+        {enviando ? "Enviando…" : "Enviar mensagem"}
+      </button>
+    </form>
+  );
+}
+
 function PedidoCard({ pedido }: { pedido: Pedido }) {
   const [aberto, setAberto] = useState(false);
   const resumoItens = pedido.order_items.map((i) => i.product_name).join(", ");
@@ -448,6 +514,14 @@ export function Perfil() {
         <Reveal className="mt-10">
           <h2 className="text-lg font-semibold">Endereço</h2>
           <EnderecoCartao />
+        </Reveal>
+
+        <Reveal className="mt-10">
+          <h2 className="flex items-center gap-2 text-lg font-semibold">
+            <MessageCircle className="size-4 text-primary" />
+            Entrar em contato com o suporte
+          </h2>
+          <SuporteCartao />
         </Reveal>
 
         <Reveal className="mt-10">

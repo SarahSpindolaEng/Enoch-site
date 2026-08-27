@@ -1,7 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { Instagram, Mail, MessageCircle } from "lucide-react";
 import { Reveal } from "@/components/site/Reveal";
-import { SupportChat } from "@/components/site/SupportChat";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/lib/auth";
 
@@ -147,8 +146,6 @@ export function Contato() {
           )}
         </Reveal>
       </section>
-
-      <SupportChat />
     </div>
   );
 }

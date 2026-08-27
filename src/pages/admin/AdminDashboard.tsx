@@ -133,7 +133,12 @@ function PedidosTab() {
               <tr key={o.id} className="border-b border-border last:border-0 hover:bg-surface/60">
                 <td className="px-5 py-3.5 font-medium">#{o.id.slice(0, 8)}</td>
                 <td className="px-5 py-3.5 text-muted-foreground">
-                  {cliente?.name ?? cliente?.email ?? o.user_id.slice(0, 8)}
+                  <p className="font-medium text-foreground">{cliente?.name ?? o.user_id.slice(0, 8)}</p>
+                  {cliente?.email ? (
+                    <a href={`mailto:${cliente.email}`} className="text-xs text-primary hover:brightness-110">
+                      {cliente.email}
+                    </a>
+                  ) : null}
                 </td>
                 <td className="px-5 py-3.5 text-muted-foreground">
                   {o.order_items.map((i) => `${i.quantity}x ${i.product_name}`).join(", ")}

@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { AudioLines, Headphones, Keyboard, Watch } from "lucide-react";
+import { AudioLines, Bike, Headphones, Keyboard, Laptop, Lightbulb, Watch } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase, type DbProduct } from "@/lib/supabaseClient";
 
@@ -22,13 +22,24 @@ export type Product = {
   installments: number;
 };
 
-export const categories = ["Todos", "Áudio", "Vestíveis", "Acessórios"] as const;
+export const categories = [
+  "Todos",
+  "Áudio",
+  "Vestíveis",
+  "Informática",
+  "Casa Inteligente",
+  "Mobilidade Elétrica",
+  "Acessórios",
+] as const;
 
 // Sem foto cadastrada, cai num ícone por categoria — mantém o visual
 // "clean tech" consistente enquanto o produto não tem imagem própria.
 const iconePorCategoria: Record<string, LucideIcon> = {
   Áudio: Headphones,
   Vestíveis: Watch,
+  Informática: Laptop,
+  "Casa Inteligente": Lightbulb,
+  "Mobilidade Elétrica": Bike,
   Acessórios: Keyboard,
 };
 
