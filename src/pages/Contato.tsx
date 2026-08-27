@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { Link } from "react-router-dom";
 import { Instagram, Mail, MessageCircle } from "lucide-react";
 import { Reveal } from "@/components/site/Reveal";
 import { useOpenSupportThread } from "@/components/site/SupportChat";
@@ -38,24 +39,24 @@ export function Contato() {
     setErro(null);
     const form = new FormData(e.currentTarget);
     setEnviando(true);
+    if (!user) return;
     const { data, error } = await supabase
       .from("contact_messages")
       .insert({
-        name: form.get("name"),
-        email: form.get("email"),
+        // Nome/e-mail vêm da conta de verdade, não de um campo digitável —
+        // evita a mensagem aparecer vinculada à conta com dados forjados.
+        name: user.name,
+        email: user.email,
         subject: form.get("subject"),
         message: form.get("message"),
-        user_id: user?.id ?? null,
+        user_id: user.id,
       })
       .select("id")
       .single();
     setEnviando(false);
     if (error || !data) return setErro("Não foi possível enviar. Tente novamente em instantes.");
     setEnviado(true);
-    // Logado: a conversa já abre sozinha no chat do site (bolão no canto).
-    // Sem conta, não tem como vincular a conversa a ninguém — a resposta
-    // só pode vir por e-mail mesmo.
-    if (user) abrirThread(data.id as string);
+    abrirThread(data.id as string);
   };
 
   return (
@@ -99,41 +100,45 @@ export function Contato() {
         </Reveal>
 
         <Reveal delay={120} className="min-w-0">
-          {enviado ? (
+          {!user ? (
+            <div className="flex h-full flex-col items-start justify-center rounded-3xl border border-border bg-surface p-8">
+              <p className="text-lg font-semibold">Entre na sua conta para falar com o suporte</p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Pra enviar uma mensagem e acompanhar a resposta no chat do site, você precisa estar
+                logado.
+              </p>
+              <Link
+                to="/login"
+                className="mt-6 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition-all duration-300 hover:brightness-110"
+              >
+                Entrar / criar conta
+              </Link>
+            </div>
+          ) : enviado ? (
             <div className="flex h-full flex-col items-start justify-center rounded-3xl border border-primary/30 bg-surface p-8">
               <p className="text-lg font-semibold">Mensagem enviada ✓</p>
               <p className="mt-2 text-sm text-muted-foreground">
-                {user
-                  ? "Já abrimos um chat com o suporte aqui mesmo no site, no bolão do canto da tela — é só continuar a conversa por lá quando quiser."
-                  : "Recebemos seu contato e vamos responder por e-mail em breve."}
+                Já abrimos um chat com o suporte aqui mesmo no site, no bolão do canto da tela — é
+                só continuar a conversa por lá quando quiser.
               </p>
             </div>
           ) : (
             <form onSubmit={enviar} className="rounded-3xl border border-border bg-surface p-6 sm:p-8">
               <p className="mb-5 text-xs leading-relaxed text-muted-foreground">
-                {user
-                  ? "Isso também é uma forma de falar com o suporte: ao enviar, abre um chat aqui mesmo no site (bolão no canto da tela) onde você acompanha a resposta e pode continuar a conversa."
-                  : "Envie sua mensagem e responderemos por e-mail. Entrando na sua conta, essa mesma mensagem já abre um chat com o suporte direto no site."}
+                Ao enviar, abre um chat aqui mesmo no site (bolão no canto da tela) onde você
+                acompanha a resposta e pode continuar a conversa.
               </p>
               <div className="grid gap-5">
-                {[
-                  { name: "name", label: "Nome", type: "text", placeholder: "Seu nome" },
-                  { name: "email", label: "E-mail", type: "email", placeholder: "seu@email.com" },
-                  { name: "subject", label: "Assunto", type: "text", placeholder: "Como podemos ajudar?" },
-                ].map((field) => (
-                  <label key={field.label} className="block">
-                    <span className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
-                      {field.label}
-                    </span>
-                    <input
-                      required
-                      name={field.name}
-                      type={field.type}
-                      placeholder={field.placeholder}
-                      className="mt-2 w-full rounded-xl border border-input bg-background px-4 py-3 text-sm outline-none transition-all duration-300 placeholder:text-muted-foreground focus:border-primary/60 focus:shadow-[0_0_28px_-14px_var(--primary)]"
-                    />
-                  </label>
-                ))}
+                <label className="block">
+                  <span className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Assunto</span>
+                  <input
+                    required
+                    name="subject"
+                    type="text"
+                    placeholder="Como podemos ajudar?"
+                    className="mt-2 w-full rounded-xl border border-input bg-background px-4 py-3 text-sm outline-none transition-all duration-300 placeholder:text-muted-foreground focus:border-primary/60 focus:shadow-[0_0_28px_-14px_var(--primary)]"
+                  />
+                </label>
                 <label className="block">
                   <span className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
                     Mensagem
