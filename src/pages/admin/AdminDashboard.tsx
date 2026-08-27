@@ -8,11 +8,13 @@ import {
   Mail,
   Pencil,
   Plus,
+  ShieldAlert,
   ShoppingBag,
   Trash2,
   X,
 } from "lucide-react";
 import { EnochMark } from "@/components/site/EnochLogo";
+import { DoisFatores } from "@/components/site/ContaSeguranca";
 import { useAdminAuth } from "@/lib/adminAuth";
 import { supabase, type DbProduct } from "@/lib/supabaseClient";
 import { categories, formatPrice, invalidateProducts } from "@/lib/products";
@@ -950,13 +952,46 @@ function ProdutoLinhaEdicao({
 }
 
 export function AdminDashboard() {
-  const { isAdmin, loading, logout } = useAdminAuth();
+  const { isAdmin, precisaAtivar2FA, loading, logout, recarregar } = useAdminAuth();
   const [aba, setAba] = useState<"pedidos" | "produtos" | "mensagens">("pedidos");
 
   if (loading) {
     return (
       <div className="grid min-h-screen place-items-center bg-background text-sm text-muted-foreground">
         Verificando acesso…
+      </div>
+    );
+  }
+
+  if (precisaAtivar2FA) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background px-5 py-16">
+        <div className="w-full max-w-md">
+          <div className="flex justify-center">
+            <EnochMark className="h-8" />
+          </div>
+          <div className="mt-6 rounded-2xl border border-amber-400/30 bg-amber-400/10 p-4 text-sm text-amber-300">
+            <p className="flex items-center gap-2 font-semibold">
+              <ShieldAlert className="size-4 shrink-0" />
+              2FA obrigatório para administradores
+            </p>
+            <p className="mt-1.5 text-xs leading-relaxed text-amber-300/90">
+              Por segurança, só é possível usar o painel administrativo com a autenticação em duas
+              etapas ativada nesta conta. Ative agora pra continuar — leva menos de um minuto.
+            </p>
+          </div>
+          <div className="mt-4 rounded-2xl border border-border bg-surface p-1">
+            <DoisFatores onAtivado={recarregar} />
+          </div>
+          <button
+            type="button"
+            onClick={logout}
+            className="mt-6 mx-auto flex items-center gap-2 text-sm text-muted-foreground hover:text-primary"
+          >
+            <LogOut className="size-4" />
+            Sair
+          </button>
+        </div>
       </div>
     );
   }

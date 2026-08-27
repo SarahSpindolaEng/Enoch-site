@@ -182,7 +182,7 @@ function AlterarSenha() {
 
 type Fator = { id: string; status: string };
 
-function DoisFatores() {
+export function DoisFatores({ onAtivado }: { onAtivado?: () => void } = {}) {
   const [fatores, setFatores] = useState<Fator[] | null>(null);
   const [inscrevendo, setInscrevendo] = useState<{ factorId: string; qrCode: string; secret: string } | null>(null);
   const [codigo, setCodigo] = useState("");
@@ -224,6 +224,7 @@ function DoisFatores() {
     setCodigo("");
     setMsg({ tipo: "ok", texto: "Autenticação em duas etapas ativada." });
     void carregarFatores();
+    onAtivado?.();
   };
 
   const cancelarAtivacao = async () => {
