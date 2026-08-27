@@ -310,11 +310,15 @@ function MensagensTab() {
               </button>
             </div>
           </div>
-          <p className="mt-3 whitespace-pre-wrap text-sm text-muted-foreground">{m.message}</p>
-
           {threadAberta === m.id ? (
+            // Mesmo layout do chat que o cliente vê: a mensagem original
+            // entra como o primeiro balão da conversa, seguida das
+            // respostas em ordem — não só um texto solto acima do chat.
             <div className="mt-4 border-t border-border pt-4">
               <div className="grid gap-2">
+                <div className="max-w-[80%] rounded-xl bg-background px-3.5 py-2 text-xs leading-relaxed text-foreground">
+                  {m.message}
+                </div>
                 {(respostas[m.id] ?? []).map((r) => (
                   <div
                     key={r.id}
@@ -328,9 +332,6 @@ function MensagensTab() {
                     {r.message}
                   </div>
                 ))}
-                {(respostas[m.id] ?? []).length === 0 ? (
-                  <p className="text-xs text-muted-foreground">Nenhuma resposta ainda.</p>
-                ) : null}
               </div>
               <div className="mt-3 flex gap-2">
                 <input
@@ -349,7 +350,9 @@ function MensagensTab() {
                 </button>
               </div>
             </div>
-          ) : null}
+          ) : (
+            <p className="mt-3 line-clamp-2 text-sm text-muted-foreground">{m.message}</p>
+          )}
         </div>
       ))}
     </div>
