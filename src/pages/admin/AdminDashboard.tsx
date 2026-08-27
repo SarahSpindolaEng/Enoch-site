@@ -5,6 +5,7 @@ import {
   ImagePlus,
   LayoutGrid,
   LogOut,
+  Mail,
   Pencil,
   Plus,
   ShoppingBag,
@@ -17,6 +18,23 @@ import { supabase, type DbProduct } from "@/lib/supabaseClient";
 import { categories, formatPrice, invalidateProducts } from "@/lib/products";
 import { cn } from "@/lib/utils";
 
+// Confere os magic bytes de verdade em vez de confiar na extensão do
+// arquivo ou no accept="image/*" do input (client-side, ambos triviais de
+// burlar). Cobre os formatos que o Storage/navegador realmente exibem como
+// imagem.
+async function pareceImagemValida(file: File): Promise<boolean> {
+  const MAX_BYTES = 5 * 1024 * 1024;
+  if (file.size > MAX_BYTES) return false;
+  const bytes = new Uint8Array(await file.slice(0, 12).arrayBuffer());
+  const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+  if (hex.startsWith("ffd8ff")) return true; // JPEG
+  if (hex.startsWith("89504e470d0a1a0a")) return true; // PNG
+  if (hex.startsWith("47494638")) return true; // GIF
+  if (hex.startsWith("52494646") && hex.slice(16, 24) === "57454250")
+    return true; // WEBP (RIFF....WEBP)
+  return false;
+}
+
 type Profile = { id: string; name: string | null; email: string | null };
 type OrderItem = { product_name: string; quantity: number; unit_price: number };
 type Order = {
@@ -25,14 +43,27 @@ type Order = {
   status: string;
   total: number;
   created_at: string;
+  tracking_code: string | null;
+  tracking_url: string | null;
   order_items: OrderItem[];
 };
 
-const statusOptions = ["pendente", "pago", "enviado", "entregue", "cancelado"] as const;
+// pendente = cliente ainda não pagou (aguardando Pix). Só a partir de
+// "preparando" o pedido entra de fato na operação.
+const statusOptions = ["pendente", "preparando", "enviado", "em_transito", "entregue", "cancelado"] as const;
+const statusLabel: Record<string, string> = {
+  pendente: "Pendente",
+  preparando: "Preparando pedido",
+  enviado: "Pedido enviado",
+  em_transito: "Em trânsito",
+  entregue: "Entregue",
+  cancelado: "Cancelado",
+};
 const statusEstilo: Record<string, string> = {
   pendente: "border-amber-400/30 bg-amber-400/10 text-amber-300",
-  pago: "border-primary/40 bg-primary/10 text-primary",
+  preparando: "border-primary/40 bg-primary/10 text-primary",
   enviado: "border-blue-400/30 bg-blue-400/10 text-blue-300",
+  em_transito: "border-blue-400/30 bg-blue-400/10 text-blue-300",
   entregue: "border-emerald-400/30 bg-emerald-400/10 text-emerald-300",
   cancelado: "border-red-400/30 bg-red-400/10 text-red-400",
 };
@@ -48,7 +79,9 @@ function PedidosTab() {
       const [{ data: orderRows }, { data: profileRows }] = await Promise.all([
         supabase
           .from("orders")
-          .select("id, user_id, status, total, created_at, order_items(product_name, quantity, unit_price)")
+          .select(
+            "id, user_id, status, total, created_at, tracking_code, tracking_url, order_items(product_name, quantity, unit_price)",
+          )
           .order("created_at", { ascending: false }),
         supabase.from("profiles").select("id, name, email"),
       ]);
@@ -64,6 +97,11 @@ function PedidosTab() {
   const mudarStatus = (id: string, status: string) => {
     setOrders((prev) => prev?.map((o) => (o.id === id ? { ...o, status } : o)) ?? null);
     void supabase.from("orders").update({ status }).eq("id", id);
+  };
+
+  const mudarRastreio = (id: string, patch: { tracking_code?: string; tracking_url?: string }) => {
+    setOrders((prev) => prev?.map((o) => (o.id === id ? { ...o, ...patch } : o)) ?? null);
+    void supabase.from("orders").update(patch).eq("id", id);
   };
 
   if (orders === null) return <p className="text-sm text-muted-foreground">Carregando…</p>;
@@ -84,6 +122,7 @@ function PedidosTab() {
             <th className="px-5 py-3 font-medium">Itens</th>
             <th className="px-5 py-3 font-medium">Valor</th>
             <th className="px-5 py-3 font-medium">Status</th>
+            <th className="px-5 py-3 font-medium">Rastreio</th>
             <th className="px-5 py-3 font-medium">Data</th>
           </tr>
         </thead>
@@ -105,16 +144,32 @@ function PedidosTab() {
                     value={o.status}
                     onChange={(e) => mudarStatus(o.id, e.target.value)}
                     className={cn(
-                      "rounded-full border px-2.5 py-1 text-xs font-medium capitalize outline-none",
+                      "rounded-full border px-2.5 py-1 text-xs font-medium outline-none",
                       statusEstilo[o.status] ?? "border-border bg-background text-muted-foreground",
                     )}
                   >
                     {statusOptions.map((s) => (
                       <option key={s} value={s}>
-                        {s}
+                        {statusLabel[s]}
                       </option>
                     ))}
                   </select>
+                </td>
+                <td className="px-5 py-3.5">
+                  <div className="grid gap-1.5">
+                    <input
+                      defaultValue={o.tracking_code ?? ""}
+                      placeholder="Código de rastreio"
+                      onBlur={(e) => mudarRastreio(o.id, { tracking_code: e.target.value || undefined })}
+                      className="w-40 rounded-lg border border-input bg-background px-2 py-1 text-xs outline-none focus:border-primary/60"
+                    />
+                    <input
+                      defaultValue={o.tracking_url ?? ""}
+                      placeholder="Link de rastreio (Melhor Envio)"
+                      onBlur={(e) => mudarRastreio(o.id, { tracking_url: e.target.value || undefined })}
+                      className="w-40 rounded-lg border border-input bg-background px-2 py-1 text-xs outline-none focus:border-primary/60"
+                    />
+                  </div>
                 </td>
                 <td className="px-5 py-3.5 text-muted-foreground">
                   {new Date(o.created_at).toLocaleDateString("pt-BR")}
@@ -124,6 +179,101 @@ function PedidosTab() {
           })}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+type ContactMessage = {
+  id: string;
+  name: string;
+  email: string;
+  subject: string;
+  message: string;
+  status: "novo" | "lido";
+  created_at: string;
+};
+
+function MensagensTab() {
+  const [mensagens, setMensagens] = useState<ContactMessage[] | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    supabase
+      .from("contact_messages")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .then(({ data }) => {
+        if (active) setMensagens((data as ContactMessage[] | null) ?? []);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const marcarLida = (id: string) => {
+    setMensagens((prev) => prev?.map((m) => (m.id === id ? { ...m, status: "lido" } : m)) ?? null);
+    void supabase.from("contact_messages").update({ status: "lido" }).eq("id", id);
+  };
+
+  const excluir = (id: string) => {
+    setMensagens((prev) => prev?.filter((m) => m.id !== id) ?? null);
+    void supabase.from("contact_messages").delete().eq("id", id);
+  };
+
+  if (mensagens === null) return <p className="text-sm text-muted-foreground">Carregando…</p>;
+  if (mensagens.length === 0)
+    return (
+      <p className="rounded-2xl border border-border bg-surface p-5 text-sm text-muted-foreground">
+        Nenhuma mensagem ainda.
+      </p>
+    );
+
+  return (
+    <div className="grid gap-3">
+      {mensagens.map((m) => (
+        <div
+          key={m.id}
+          className={cn(
+            "rounded-2xl border p-5",
+            m.status === "novo" ? "border-primary/40 bg-primary/5" : "border-border bg-surface",
+          )}
+        >
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="flex items-center gap-2 text-sm font-semibold">
+                {m.status === "novo" ? (
+                  <span className="size-2 shrink-0 rounded-full bg-primary" />
+                ) : null}
+                {m.subject}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {m.name} · {m.email} · {new Date(m.created_at).toLocaleString("pt-BR")}
+              </p>
+            </div>
+            <div className="flex shrink-0 gap-2">
+              {m.status === "novo" ? (
+                <button
+                  type="button"
+                  onClick={() => marcarLida(m.id)}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs text-muted-foreground hover:border-primary/40 hover:text-primary"
+                >
+                  <Check className="size-3.5" />
+                  Marcar como lida
+                </button>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => excluir(m.id)}
+                className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs text-muted-foreground hover:border-red-400/50 hover:text-red-400"
+              >
+                <Trash2 className="size-3.5" />
+                Excluir
+              </button>
+            </div>
+          </div>
+          <p className="mt-3 whitespace-pre-wrap text-sm text-muted-foreground">{m.message}</p>
+        </div>
+      ))}
     </div>
   );
 }
@@ -443,7 +593,16 @@ function ProdutoLinhaEdicao({
             type="file"
             accept="image/*"
             className="hidden"
-            onChange={(e) => setImagemArquivo(e.target.files?.[0] ?? null)}
+            onChange={async (e) => {
+              const file = e.target.files?.[0] ?? null;
+              e.target.value = "";
+              if (!file) return setImagemArquivo(null);
+              if (!(await pareceImagemValida(file))) {
+                alert("Arquivo inválido: envie uma imagem JPEG, PNG, GIF ou WEBP de até 5MB.");
+                return;
+              }
+              setImagemArquivo(file);
+            }}
           />
         </label>
       </td>
@@ -623,7 +782,7 @@ function ProdutoLinhaEdicao({
 
 export function AdminDashboard() {
   const { isAdmin, loading, logout } = useAdminAuth();
-  const [aba, setAba] = useState<"pedidos" | "produtos">("pedidos");
+  const [aba, setAba] = useState<"pedidos" | "produtos" | "mensagens">("pedidos");
 
   if (loading) {
     return (
@@ -662,9 +821,8 @@ export function AdminDashboard() {
       <main className="mx-auto max-w-6xl px-5 py-10 sm:px-8">
         <h1 className="text-2xl font-bold sm:text-3xl">Visão geral</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Pedidos e produtos aqui são os dados reais do banco — preço e estoque editados aqui valem
-          para o checkout. A vitrine pública ainda usa um catálogo fixo no código, então uma mudança
-          de nome/preço/imagem visível pro cliente precisa ser feita lá também.
+          Pedidos e produtos aqui são os dados reais do banco — preço, estoque, nome e imagem
+          editados aqui já valem direto na vitrine pública e no checkout.
         </p>
 
         <div className="mt-8 flex gap-2 border-b border-border">
@@ -694,9 +852,24 @@ export function AdminDashboard() {
             <LayoutGrid className="size-4" />
             Produtos
           </button>
+          <button
+            type="button"
+            onClick={() => setAba("mensagens")}
+            className={cn(
+              "flex items-center gap-2 border-b-2 px-1 pb-3 text-sm font-medium transition-colors",
+              aba === "mensagens"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground",
+            )}
+          >
+            <Mail className="size-4" />
+            Mensagens
+          </button>
         </div>
 
-        <div className="mt-6">{aba === "pedidos" ? <PedidosTab /> : <ProdutosTab />}</div>
+        <div className="mt-6">
+          {aba === "pedidos" ? <PedidosTab /> : aba === "produtos" ? <ProdutosTab /> : <MensagensTab />}
+        </div>
       </main>
     </div>
   );

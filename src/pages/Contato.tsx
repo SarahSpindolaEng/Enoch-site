@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { Instagram, Mail, MessageCircle } from "lucide-react";
 import { Reveal } from "@/components/site/Reveal";
+import { supabase } from "@/lib/supabaseClient";
 
 const canais = [
   {
@@ -25,6 +26,24 @@ const canais = [
 
 export function Contato() {
   const [enviado, setEnviado] = useState(false);
+  const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+
+  const enviar = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setErro(null);
+    const form = new FormData(e.currentTarget);
+    setEnviando(true);
+    const { error } = await supabase.from("contact_messages").insert({
+      name: form.get("name"),
+      email: form.get("email"),
+      subject: form.get("subject"),
+      message: form.get("message"),
+    });
+    setEnviando(false);
+    if (error) return setErro("Não foi possível enviar. Tente novamente em instantes.");
+    setEnviado(true);
+  };
 
   return (
     <div className="relative">
@@ -75,18 +94,12 @@ export function Contato() {
               </p>
             </div>
           ) : (
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                setEnviado(true);
-              }}
-              className="rounded-3xl border border-border bg-surface p-6 sm:p-8"
-            >
+            <form onSubmit={enviar} className="rounded-3xl border border-border bg-surface p-6 sm:p-8">
               <div className="grid gap-5">
                 {[
-                  { label: "Nome", type: "text", placeholder: "Seu nome" },
-                  { label: "E-mail", type: "email", placeholder: "seu@email.com" },
-                  { label: "Assunto", type: "text", placeholder: "Como podemos ajudar?" },
+                  { name: "name", label: "Nome", type: "text", placeholder: "Seu nome" },
+                  { name: "email", label: "E-mail", type: "email", placeholder: "seu@email.com" },
+                  { name: "subject", label: "Assunto", type: "text", placeholder: "Como podemos ajudar?" },
                 ].map((field) => (
                   <label key={field.label} className="block">
                     <span className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
@@ -94,6 +107,7 @@ export function Contato() {
                     </span>
                     <input
                       required
+                      name={field.name}
                       type={field.type}
                       placeholder={field.placeholder}
                       className="mt-2 w-full rounded-xl border border-input bg-background px-4 py-3 text-sm outline-none transition-all duration-300 placeholder:text-muted-foreground focus:border-primary/60 focus:shadow-[0_0_28px_-14px_var(--primary)]"
@@ -106,16 +120,23 @@ export function Contato() {
                   </span>
                   <textarea
                     required
+                    name="message"
                     rows={5}
                     placeholder="Escreva sua mensagem"
                     className="mt-2 w-full resize-none rounded-xl border border-input bg-background px-4 py-3 text-sm outline-none transition-all duration-300 placeholder:text-muted-foreground focus:border-primary/60 focus:shadow-[0_0_28px_-14px_var(--primary)]"
                   />
                 </label>
+                {erro ? (
+                  <p className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                    {erro}
+                  </p>
+                ) : null}
                 <button
                   type="submit"
-                  className="mt-1 rounded-full bg-primary px-7 py-3.5 text-sm font-semibold text-primary-foreground transition-all duration-300 hover:brightness-110 hover:shadow-[0_0_40px_-10px_var(--primary)] active:scale-[0.99]"
+                  disabled={enviando}
+                  className="mt-1 rounded-full bg-primary px-7 py-3.5 text-sm font-semibold text-primary-foreground transition-all duration-300 hover:brightness-110 hover:shadow-[0_0_40px_-10px_var(--primary)] active:scale-[0.99] disabled:opacity-60"
                 >
-                  Enviar mensagem
+                  {enviando ? "Enviando…" : "Enviar mensagem"}
                 </button>
               </div>
             </form>

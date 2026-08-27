@@ -73,18 +73,9 @@ export function Home() {
 
       {/* Catálogo */}
       <section className="mx-auto max-w-7xl px-5 pb-16 pt-8 sm:px-8 lg:pb-20 lg:pt-10">
-        <Reveal className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-4 sm:flex sm:justify-between">
-          <div className="min-w-0">
-            <p className="text-xs uppercase tracking-[0.2em] text-primary">Coleção</p>
-            <h2 className="mt-3 text-3xl font-bold sm:text-4xl">Nosso catálogo</h2>
-          </div>
-          <Link
-            to="/produtos"
-            className="group inline-flex shrink-0 items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-primary"
-          >
-            Ver tudo
-            <ArrowRight className="size-4 transition-transform duration-300 group-hover:translate-x-1" />
-          </Link>
+        <Reveal>
+          <p className="text-xs uppercase tracking-[0.2em] text-primary">Coleção</p>
+          <h2 className="mt-3 text-3xl font-bold sm:text-4xl">Nosso catálogo</h2>
         </Reveal>
 
         <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -94,6 +85,16 @@ export function Home() {
             </Reveal>
           ))}
         </div>
+
+        <Reveal className="mt-12 flex justify-center">
+          <Link
+            to="/produtos"
+            className="group inline-flex items-center gap-2 rounded-full bg-primary px-8 py-4 text-base font-semibold text-primary-foreground transition-all duration-300 hover:brightness-110 hover:shadow-[0_0_44px_-10px_var(--primary)]"
+          >
+            Ver catálogo completo
+            <ArrowRight className="size-5 transition-transform duration-300 group-hover:translate-x-1" />
+          </Link>
+        </Reveal>
       </section>
 
       {/* Institucional */}
@@ -133,29 +134,6 @@ export function Home() {
         </div>
       </section>
 
-      {/* CTA */}
-      <section className="mx-auto max-w-7xl px-5 py-20 sm:px-8 lg:py-28">
-        <Reveal>
-          <div className="relative overflow-hidden rounded-3xl border border-border bg-surface px-6 py-16 text-center sm:px-12">
-            <div className="pointer-events-none absolute inset-0 hero-glow" />
-            <div className="relative mx-auto max-w-xl">
-              <h2 className="text-balance text-3xl font-bold sm:text-4xl">
-                Pronto para ouvir a diferença?
-              </h2>
-              <p className="mt-4 text-sm leading-relaxed text-muted-foreground sm:text-base">
-                Troca garantida em até 30 dias em toda a nossa curadoria de áudio.
-              </p>
-              <Link
-                to="/produtos"
-                className="group mt-8 inline-flex items-center gap-2 rounded-full bg-primary px-7 py-3.5 text-sm font-semibold text-primary-foreground transition-all duration-300 hover:brightness-110 hover:shadow-[0_0_44px_-10px_var(--primary)]"
-              >
-                Ver catálogo completo
-                <ArrowRight className="size-4 transition-transform duration-300 group-hover:translate-x-1" />
-              </Link>
-            </div>
-          </div>
-        </Reveal>
-      </section>
     </div>
   );
 }

@@ -82,7 +82,7 @@ export function Footer() {
 
         <div className="mt-14 flex flex-col-reverse items-start gap-6 border-t border-border pt-8 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-xs text-muted-foreground">
-            © {new Date().getFullYear()} Enoch Tech. Todos os direitos reservados. A
+            © 2025 Enoch Tech. Todos os direitos reservados. A
             Enoch Tech é uma revendedora autorizada — não fabricamos os produtos
             listados.
           </p>

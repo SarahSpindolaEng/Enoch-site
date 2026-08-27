@@ -48,10 +48,6 @@ export function Catalogo() {
           <h1 className="mt-3 text-balance text-4xl font-bold leading-[1.08] sm:text-5xl lg:text-6xl">
             Todos os produtos
           </h1>
-          <p className="mt-5 text-base leading-relaxed text-muted-foreground">
-            Uma curadoria curta e deliberada. {produtos?.length ?? 0} produtos de marcas
-            parceiras, cada um selecionado pra durar anos.
-          </p>
         </Reveal>
       </section>
 

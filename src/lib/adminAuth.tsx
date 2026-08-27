@@ -31,6 +31,18 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
         }
         return;
       }
+      // Se a conta tem 2FA, a sessão só conta como completa depois do
+      // código do autenticador — sem isso, mesmo com a senha certa, o
+      // painel não deve considerar a pessoa logada como admin.
+      const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      const sessaoCompleta = !aal || aal.currentLevel === aal.nextLevel;
+      if (!sessaoCompleta) {
+        if (active) {
+          setIsAdmin(false);
+          setLoading(false);
+        }
+        return;
+      }
       const { data: profile } = await supabase
         .from("profiles")
         .select("role")

@@ -1,15 +1,17 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { CheckCircle2, Minus, Plus, ShoppingBag, Trash2 } from "lucide-react";
+import { CheckCircle2, MapPin, Minus, Plus, ShoppingBag, Trash2 } from "lucide-react";
 import { Reveal } from "@/components/site/Reveal";
 import { ProductArt } from "@/components/site/ProductArt";
 import { formatPrice, useProducts } from "@/lib/products";
 import { useCart } from "@/lib/cart";
 import { useAuth } from "@/lib/auth";
+import { useAddress } from "@/lib/address";
 
 export function Carrinho() {
   const { lines, setQty, removeFromCart, subtotal, checkout } = useCart();
   const { user } = useAuth();
+  const { address } = useAddress();
   const produtos = useProducts();
   const navigate = useNavigate();
   const [carregando, setCarregando] = useState(false);
@@ -160,6 +162,30 @@ export function Carrinho() {
                   <span>{formatPrice(total)}</span>
                 </div>
               </div>
+
+              {user ? (
+                <div className="mt-5 flex items-start justify-between gap-3 rounded-xl border border-border bg-background px-4 py-3 text-xs">
+                  <div className="flex items-start gap-2 text-muted-foreground">
+                    <MapPin className="mt-0.5 size-3.5 shrink-0 text-primary" />
+                    {address ? (
+                      <span>
+                        {address.street}, {address.number}
+                        {address.complement ? ` — ${address.complement}` : ""}
+                        <br />
+                        {address.neighborhood} · {address.city}/{address.state} · CEP {address.cep}
+                      </span>
+                    ) : (
+                      <span>Nenhum endereço cadastrado.</span>
+                    )}
+                  </div>
+                  <Link
+                    to="/perfil"
+                    className="shrink-0 font-medium text-primary hover:brightness-110"
+                  >
+                    {address ? "Trocar" : "Cadastrar"}
+                  </Link>
+                </div>
+              ) : null}
 
               {erro ? (
                 <p className="mt-4 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">

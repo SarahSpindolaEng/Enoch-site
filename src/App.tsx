@@ -1,5 +1,5 @@
 import { Route, Routes, useLocation } from "react-router-dom";
-import { useEffect } from "react";
+import { Suspense, lazy, useEffect } from "react";
 import { Layout } from "@/components/site/Layout";
 import { CartProvider } from "@/lib/cart";
 import { AuthProvider } from "@/lib/auth";
@@ -14,9 +14,14 @@ import { Login } from "@/pages/Login";
 import { Perfil } from "@/pages/Perfil";
 import { Carrinho } from "@/pages/Carrinho";
 import { ListaDeDesejos } from "@/pages/ListaDeDesejos";
-import { AdminLogin } from "@/pages/admin/AdminLogin";
-import { AdminDashboard } from "@/pages/admin/AdminDashboard";
 import { NotFound } from "@/pages/NotFound";
+
+// Painel admin só carrega quando alguém acessa /admin — mantém esse código
+// (e as libs que ele puxa) fora do bundle que todo cliente baixa.
+const AdminLogin = lazy(() => import("@/pages/admin/AdminLogin").then((m) => ({ default: m.AdminLogin })));
+const AdminDashboard = lazy(() =>
+  import("@/pages/admin/AdminDashboard").then((m) => ({ default: m.AdminDashboard })),
+);
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -33,8 +38,22 @@ export default function App() {
         <CartProvider>
           <ScrollToTop />
           <Routes>
-            <Route path="admin/login" element={<AdminLogin />} />
-            <Route path="admin" element={<AdminDashboard />} />
+            <Route
+              path="admin/login"
+              element={
+                <Suspense fallback={null}>
+                  <AdminLogin />
+                </Suspense>
+              }
+            />
+            <Route
+              path="admin"
+              element={
+                <Suspense fallback={null}>
+                  <AdminDashboard />
+                </Suspense>
+              }
+            />
             <Route element={<Layout />}>
               <Route index element={<Home />} />
               <Route path="produtos" element={<Catalogo />} />
