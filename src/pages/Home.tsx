@@ -59,7 +59,7 @@ export function Home() {
             </Reveal>
 
             <Reveal delay={120} className="min-w-0">
-              <div className="mx-auto aspect-square w-full max-w-md overflow-hidden rounded-3xl lg:mx-0 lg:ml-auto lg:max-w-sm">
+              <div className="mx-auto aspect-square w-full max-w-md overflow-hidden rounded-3xl lg:mx-0 lg:ml-auto lg:max-w-md">
                 <img
                   src={homeSquare}
                   alt="Enoch Tech — tecnologia que move o seu mundo"
