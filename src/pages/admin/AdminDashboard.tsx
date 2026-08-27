@@ -381,12 +381,12 @@ function MensagensTab() {
                           {statusLabel[pedido.status] ?? pedido.status}
                         </span>
                       </div>
-                      <div className="mt-2 grid gap-1.5">
+                      <div className="mt-3 grid gap-2">
                         {pedido.order_items.map((item, i) => {
                           const produto = primeiroProduto(item.products);
                           const conteudo = (
                             <>
-                              <span className="grid size-9 shrink-0 place-items-center overflow-hidden rounded-lg border border-border bg-background">
+                              <span className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-xl border border-border bg-background">
                                 {produto?.image_url ? (
                                   <img
                                     src={produto.image_url}
@@ -394,11 +394,16 @@ function MensagensTab() {
                                     className="size-full object-cover"
                                   />
                                 ) : (
-                                  <ImagePlus className="size-3.5 text-muted-foreground" />
+                                  <ImagePlus className="size-5 text-muted-foreground" />
                                 )}
                               </span>
-                              <span className="min-w-0 flex-1 truncate text-foreground">
-                                {item.quantity}x {item.product_name}
+                              <span className="min-w-0 flex-1">
+                                <span className="block truncate text-sm font-semibold text-foreground">
+                                  {item.product_name}
+                                </span>
+                                <span className="mt-1 inline-flex items-center gap-1 rounded-full border border-border bg-background px-2 py-0.5 text-[11px] text-muted-foreground">
+                                  {item.quantity}x · {formatPrice(item.unit_price)}
+                                </span>
                               </span>
                             </>
                           );
@@ -408,12 +413,12 @@ function MensagensTab() {
                               href={`${window.location.pathname}#/produtos/${produto.slug}`}
                               target="_blank"
                               rel="noreferrer"
-                              className="flex items-center gap-2.5 rounded-lg p-1 text-xs transition-colors hover:bg-background"
+                              className="flex items-center gap-3 rounded-xl border border-transparent p-2 transition-all duration-200 hover:border-primary/30 hover:bg-background"
                             >
                               {conteudo}
                             </a>
                           ) : (
-                            <div key={i} className="flex items-center gap-2.5 p-1 text-xs">
+                            <div key={i} className="flex items-center gap-3 p-2">
                               {conteudo}
                             </div>
                           );
