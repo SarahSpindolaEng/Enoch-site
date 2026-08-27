@@ -15,10 +15,10 @@ export function Termos() {
         </Reveal>
 
         <Reveal delay={80} className="mt-10 rounded-2xl border border-amber-400/25 bg-amber-400/[0.06] p-5 text-xs leading-relaxed text-muted-foreground">
-          <span className="font-semibold text-amber-300">Ainda falta um dado.</span> As políticas
-          comerciais (seções 3 a 6) são o texto oficial da empresa. Falta só a razão social completa
-          (nome jurídico, ex: "Enoch Tech Comércio de Eletrônicos LTDA") pra fechar a seção 1 — o CNPJ
-          já está preenchido. Antes de operar de verdade, vale uma revisão jurídica geral.
+          <span className="font-semibold text-amber-300">Ainda falta confirmar o CNPJ.</span> As
+          políticas comerciais (seções 3 a 6) são o texto oficial da empresa. A seção 1 está com CNPJ e
+          razão social pendentes de confirmação — antes de operar de verdade, vale uma revisão jurídica
+          geral.
         </Reveal>
 
         <div className="mt-10 space-y-10 text-sm leading-relaxed text-muted-foreground">
@@ -26,9 +26,9 @@ export function Termos() {
             <h2 className="text-lg font-semibold text-foreground">1. Quem somos</h2>
             <p className="mt-3">
               A Enoch Tech é uma revendedora de eletrônicos.{" "}
-              <span className="font-medium text-amber-300">[razão social completa a preencher]</span>,
-              CNPJ 41.530.936/0001-01. Não fabricamos os produtos vendidos — atuamos como revendedora
-              autorizada, e a garantia de fábrica segue as condições de cada fabricante.
+              <span className="font-medium text-amber-300">[razão social e CNPJ a confirmar]</span>.
+              Não fabricamos os produtos vendidos — atuamos como revendedora autorizada, e a garantia
+              de fábrica segue as condições de cada fabricante.
             </p>
           </section>
 
