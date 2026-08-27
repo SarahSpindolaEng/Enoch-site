@@ -52,11 +52,43 @@ function EnderecoCartao() {
   const [rascunho, setRascunho] = useState<Address>(enderecoVazio);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const [buscandoCep, setBuscandoCep] = useState(false);
+  const [cepInvalido, setCepInvalido] = useState(false);
 
   const iniciarEdicao = () => {
     setRascunho(address ?? enderecoVazio);
     setErro(null);
+    setCepInvalido(false);
     setEditando(true);
+  };
+
+  // Consulta o CEP no ViaCEP (base oficial dos Correios) — confirma que o
+  // CEP existe de verdade e já preenche rua/bairro/cidade/UF, mas os campos
+  // continuam editáveis: é só um ponto de partida, não trava o valor.
+  const buscarCep = async (cepFormatado: string) => {
+    const digitos = cepFormatado.replace(/\D/g, "");
+    if (digitos.length !== 8) return;
+    setCepInvalido(false);
+    setBuscandoCep(true);
+    try {
+      const resposta = await fetch(`https://viacep.com.br/ws/${digitos}/json/`);
+      const dados = await resposta.json();
+      if (dados.erro) {
+        setCepInvalido(true);
+      } else {
+        setRascunho((prev) => ({
+          ...prev,
+          street: dados.logradouro || prev.street,
+          neighborhood: dados.bairro || prev.neighborhood,
+          city: dados.localidade || prev.city,
+          state: dados.uf || prev.state,
+        }));
+      }
+    } catch {
+      // API fora do ar não deve travar o cadastro — a pessoa preenche na mão
+    } finally {
+      setBuscandoCep(false);
+    }
   };
 
   const salvarEndereco = async (e: FormEvent) => {
@@ -88,11 +120,21 @@ function EnderecoCartao() {
             <input
               required
               value={rascunho[key as keyof Address] ?? ""}
-              onChange={(e) => setRascunho({ ...rascunho, [key]: formatarCampo(key, e.target.value) })}
+              onChange={(e) => {
+                const valor = formatarCampo(key, e.target.value);
+                setRascunho({ ...rascunho, [key]: valor });
+                if (key === "cep") void buscarCep(valor);
+              }}
               inputMode={inputMode}
               maxLength={maxLength}
               className="mt-1.5 w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm outline-none focus:border-primary/60"
             />
+            {key === "cep" && buscandoCep ? (
+              <span className="mt-1 block text-[11px] text-muted-foreground">Buscando CEP…</span>
+            ) : null}
+            {key === "cep" && cepInvalido ? (
+              <span className="mt-1 block text-[11px] text-destructive">CEP não encontrado.</span>
+            ) : null}
           </label>
         ))}
 
