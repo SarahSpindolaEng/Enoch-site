@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://enoch-site-five.vercel.app/sitemap.xml
