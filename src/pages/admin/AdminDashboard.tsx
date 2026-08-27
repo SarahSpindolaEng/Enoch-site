@@ -210,7 +210,7 @@ type PedidoVinculadoItem = {
   product_name: string;
   quantity: number;
   unit_price: number;
-  products: { slug: string }[] | null;
+  products: { slug: string; image_url: string | null }[] | null;
 };
 type PedidoVinculado = {
   id: string;
@@ -263,7 +263,7 @@ function MensagensTab() {
     if (m.order_id && !pedidosVinculados[m.order_id]) {
       const { data } = await supabase
         .from("orders")
-        .select("id, status, created_at, order_items(product_name, quantity, unit_price, products(slug))")
+        .select("id, status, created_at, order_items(product_name, quantity, unit_price, products(slug, image_url))")
         .eq("id", m.order_id)
         .single();
       if (data) setPedidosVinculados((prev) => ({ ...prev, [m.order_id as string]: data as PedidoVinculado }));
@@ -366,23 +366,42 @@ function MensagensTab() {
                         </span>
                       </div>
                       <div className="mt-2 grid gap-1.5">
-                        {pedido.order_items.map((item, i) => (
-                          <div key={i} className="flex items-center justify-between text-xs">
-                            <span className="text-muted-foreground">
-                              {item.quantity}x {item.product_name}
-                            </span>
-                            {item.products?.[0]?.slug ? (
-                              <a
-                                href={`${window.location.pathname}#/produtos/${item.products[0].slug}`}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="font-medium text-primary hover:brightness-110"
-                              >
-                                Ver no catálogo
-                              </a>
-                            ) : null}
-                          </div>
-                        ))}
+                        {pedido.order_items.map((item, i) => {
+                          const produto = item.products?.[0];
+                          const conteudo = (
+                            <>
+                              <span className="grid size-9 shrink-0 place-items-center overflow-hidden rounded-lg border border-border bg-background">
+                                {produto?.image_url ? (
+                                  <img
+                                    src={produto.image_url}
+                                    alt=""
+                                    className="size-full object-cover"
+                                  />
+                                ) : (
+                                  <ImagePlus className="size-3.5 text-muted-foreground" />
+                                )}
+                              </span>
+                              <span className="min-w-0 flex-1 truncate text-foreground">
+                                {item.quantity}x {item.product_name}
+                              </span>
+                            </>
+                          );
+                          return produto?.slug ? (
+                            <a
+                              key={i}
+                              href={`${window.location.pathname}#/produtos/${produto.slug}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="flex items-center gap-2.5 rounded-lg p-1 text-xs transition-colors hover:bg-background"
+                            >
+                              {conteudo}
+                            </a>
+                          ) : (
+                            <div key={i} className="flex items-center gap-2.5 p-1 text-xs">
+                              {conteudo}
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   );
