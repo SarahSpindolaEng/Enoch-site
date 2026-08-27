@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { Instagram, Mail, MessageCircle } from "lucide-react";
 import { Reveal } from "@/components/site/Reveal";
+import { useOpenSupportThread } from "@/components/site/SupportChat";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/lib/auth";
 
@@ -27,6 +28,7 @@ const canais = [
 
 export function Contato() {
   const { user } = useAuth();
+  const abrirThread = useOpenSupportThread();
   const [enviado, setEnviado] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -36,16 +38,24 @@ export function Contato() {
     setErro(null);
     const form = new FormData(e.currentTarget);
     setEnviando(true);
-    const { error } = await supabase.from("contact_messages").insert({
-      name: form.get("name"),
-      email: form.get("email"),
-      subject: form.get("subject"),
-      message: form.get("message"),
-      user_id: user?.id ?? null,
-    });
+    const { data, error } = await supabase
+      .from("contact_messages")
+      .insert({
+        name: form.get("name"),
+        email: form.get("email"),
+        subject: form.get("subject"),
+        message: form.get("message"),
+        user_id: user?.id ?? null,
+      })
+      .select("id")
+      .single();
     setEnviando(false);
-    if (error) return setErro("Não foi possível enviar. Tente novamente em instantes.");
+    if (error || !data) return setErro("Não foi possível enviar. Tente novamente em instantes.");
     setEnviado(true);
+    // Logado: a conversa já abre sozinha no chat do site (bolão no canto).
+    // Sem conta, não tem como vincular a conversa a ninguém — a resposta
+    // só pode vir por e-mail mesmo.
+    if (user) abrirThread(data.id as string);
   };
 
   return (
@@ -93,11 +103,18 @@ export function Contato() {
             <div className="flex h-full flex-col items-start justify-center rounded-3xl border border-primary/30 bg-surface p-8">
               <p className="text-lg font-semibold">Mensagem enviada ✓</p>
               <p className="mt-2 text-sm text-muted-foreground">
-                Recebemos seu contato e vamos responder em breve.
+                {user
+                  ? "Já abrimos um chat com o suporte aqui mesmo no site, no bolão do canto da tela — é só continuar a conversa por lá quando quiser."
+                  : "Recebemos seu contato e vamos responder por e-mail em breve."}
               </p>
             </div>
           ) : (
             <form onSubmit={enviar} className="rounded-3xl border border-border bg-surface p-6 sm:p-8">
+              <p className="mb-5 text-xs leading-relaxed text-muted-foreground">
+                {user
+                  ? "Isso também é uma forma de falar com o suporte: ao enviar, abre um chat aqui mesmo no site (bolão no canto da tela) onde você acompanha a resposta e pode continuar a conversa."
+                  : "Envie sua mensagem e responderemos por e-mail. Entrando na sua conta, essa mesma mensagem já abre um chat com o suporte direto no site."}
+              </p>
               <div className="grid gap-5">
                 {[
                   { name: "name", label: "Nome", type: "text", placeholder: "Seu nome" },
