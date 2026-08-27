@@ -71,7 +71,7 @@ export function Contato() {
           </h1>
           <p className="mt-6 max-w-md text-base leading-relaxed text-muted-foreground">
             Dúvidas sobre um produto, garantia ou parcerias — respondemos em até
-            um dia útil.
+            1 dia útil pelo WhatsApp, e-mail ou Instagram.
           </p>
           <p className="mt-3 text-sm text-muted-foreground">
             Atendimento: segunda a sexta, das 8h às 18h.
@@ -99,7 +99,9 @@ export function Contato() {
           </ul>
         </Reveal>
 
-        <Reveal delay={120} className="min-w-0">
+        <Reveal delay={120} className="min-w-0 lg:self-end">
+          <p className="text-xs uppercase tracking-[0.2em] text-primary">Suporte pelo site</p>
+          <h2 className="mt-2 text-lg font-semibold">Fale direto com a gente</h2>
           {!user ? (
             <div className="flex h-full flex-col items-start justify-center rounded-3xl border border-border bg-surface p-8">
               <p className="text-lg font-semibold">Entre na sua conta para falar com o suporte</p>
@@ -126,7 +128,8 @@ export function Contato() {
             <form onSubmit={enviar} className="rounded-3xl border border-border bg-surface p-6 sm:p-8">
               <p className="mb-5 text-xs leading-relaxed text-muted-foreground">
                 Ao enviar, abre um chat aqui mesmo no site (bolão no canto da tela) onde você
-                acompanha a resposta e pode continuar a conversa.
+                acompanha a resposta e pode continuar a conversa. Suporte pelo site responde em até
+                2 dias úteis.
               </p>
               <div className="grid gap-5">
                 <label className="block">

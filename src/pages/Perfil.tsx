@@ -198,6 +198,7 @@ type Pedido = {
   created_at: string;
   tracking_code: string | null;
   tracking_url: string | null;
+  expires_at: string | null;
   order_items: PedidoItem[];
 };
 
@@ -238,7 +239,20 @@ function TimelinePedido({ pedido }: { pedido: Pedido }) {
     return (
       <div className="mt-4 flex items-center gap-2.5 rounded-2xl border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm text-amber-300">
         <Package className="size-4 shrink-0" />
-        Aguardando confirmação do pagamento via Pix.
+        <span>
+          Aguardando confirmação do pagamento via Pix.
+          {pedido.expires_at ? (
+            <>
+              {" "}
+              Se não cair até{" "}
+              {new Date(pedido.expires_at).toLocaleTimeString("pt-BR", {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+              , o pedido é cancelado automaticamente.
+            </>
+          ) : null}
+        </span>
       </div>
     );
   }
@@ -453,7 +467,7 @@ export function Perfil() {
     supabase
       .from("orders")
       .select(
-        "id, status, total, created_at, tracking_code, tracking_url, order_items(product_name, quantity, unit_price)",
+        "id, status, total, created_at, tracking_code, tracking_url, expires_at, order_items(product_name, quantity, unit_price)",
       )
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
