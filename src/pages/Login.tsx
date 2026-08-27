@@ -20,6 +20,7 @@ export function Login() {
   const [mfaPendente, setMfaPendente] = useState(false);
   const [codigoMfa, setCodigoMfa] = useState("");
   const [sugerir2fa, setSugerir2fa] = useState(false);
+  const [aceitouTermos, setAceitouTermos] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [turnstileKey, setTurnstileKey] = useState(0);
   const { signIn, signUp, verifyMfaCode } = useAuth();
@@ -54,6 +55,9 @@ export function Login() {
 
     if (!captchaToken) {
       return setErro("Aguarde a verificação de segurança terminar de carregar e tente de novo.");
+    }
+    if (modo === "criar" && !aceitouTermos) {
+      return setErro("Você precisa aceitar os Termos de Uso e a Política de Privacidade pra criar sua conta.");
     }
     setCarregando(true);
 
@@ -268,6 +272,24 @@ export function Login() {
               </div>
             </label>
 
+            {modo === "criar" ? (
+              <label className="flex items-start gap-2.5 text-xs text-muted-foreground">
+                <input
+                  type="checkbox"
+                  checked={aceitouTermos}
+                  onChange={(e) => setAceitouTermos(e.target.checked)}
+                  className="mt-0.5 size-4 shrink-0 rounded border-input accent-primary"
+                />
+                <span>
+                  Li e concordo com os{" "}
+                  <a href="#/termos" target="_blank" rel="noreferrer" className="text-primary hover:underline">
+                    Termos de Uso e a Política de Privacidade
+                  </a>
+                  .
+                </span>
+              </label>
+            ) : null}
+
             <div className="flex justify-center">
               <Turnstile key={turnstileKey} onToken={setCaptchaToken} />
             </div>
@@ -286,7 +308,7 @@ export function Login() {
 
             <button
               type="submit"
-              disabled={carregando || !captchaToken}
+              disabled={carregando || !captchaToken || (modo === "criar" && !aceitouTermos)}
               className="mt-2 rounded-full bg-primary px-7 py-3.5 text-sm font-semibold text-primary-foreground transition-all duration-300 hover:brightness-110 hover:shadow-[0_0_40px_-10px_var(--primary)] active:scale-[0.99] disabled:opacity-60"
             >
               {carregando

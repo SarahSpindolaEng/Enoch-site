@@ -10,6 +10,7 @@ import { ProdutoDetalhe } from "@/pages/ProdutoDetalhe";
 import { Sobre } from "@/pages/Sobre";
 import { Contato } from "@/pages/Contato";
 import { Duvidas } from "@/pages/Duvidas";
+import { Termos } from "@/pages/Termos";
 import { Login } from "@/pages/Login";
 import { Perfil } from "@/pages/Perfil";
 import { Carrinho } from "@/pages/Carrinho";
@@ -61,6 +62,7 @@ export default function App() {
               <Route path="sobre" element={<Sobre />} />
               <Route path="contato" element={<Contato />} />
               <Route path="duvidas" element={<Duvidas />} />
+              <Route path="termos" element={<Termos />} />
               <Route path="login" element={<Login />} />
               <Route path="perfil" element={<Perfil />} />
               <Route path="carrinho" element={<Carrinho />} />

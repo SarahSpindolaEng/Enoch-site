@@ -37,6 +37,13 @@ const columns = [
       { label: "Fale conosco", to: "/contato" },
     ],
   },
+  {
+    title: "Legal",
+    links: [
+      { label: "Termos de Uso", to: "/termos" },
+      { label: "Política de Privacidade", to: "/termos" },
+    ],
+  },
 ] as const;
 
 const socials = [
@@ -57,7 +64,7 @@ export function Footer() {
             </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-8 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-8 sm:grid-cols-3 lg:grid-cols-5">
             {columns.map((col) => (
               <div key={col.title} className="min-w-0">
                 <h3 className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
