@@ -35,7 +35,7 @@ export function Home() {
         <div className="pointer-events-none absolute inset-0 hero-glow" />
         <div className="pointer-events-none absolute inset-0 grid-lines opacity-40 [mask-image:radial-gradient(70%_60%_at_50%_0%,black,transparent)]" />
         <div className="relative mx-auto max-w-7xl px-5 pb-6 pt-28 sm:px-8 lg:pb-8 lg:pt-36">
-          <div className="grid gap-14 lg:grid-cols-2 lg:gap-8">
+          <div className="grid items-center gap-14 lg:grid-cols-2 lg:gap-8">
             <Reveal className="min-w-0">
               <h1 className="text-balance text-4xl font-bold leading-[1.05] sm:text-6xl lg:text-7xl">
                 Curadoria de verdade.
@@ -59,7 +59,7 @@ export function Home() {
             </Reveal>
 
             <Reveal delay={120} className="min-w-0">
-              <div className="h-full w-full overflow-hidden rounded-3xl">
+              <div className="mx-auto aspect-square w-full max-w-md overflow-hidden rounded-3xl lg:max-w-none">
                 <img
                   src={homeSquare}
                   alt="Enoch Tech — tecnologia que move o seu mundo"

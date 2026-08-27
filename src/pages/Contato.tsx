@@ -1,7 +1,9 @@
 import { useState, type FormEvent } from "react";
 import { Instagram, Mail, MessageCircle } from "lucide-react";
 import { Reveal } from "@/components/site/Reveal";
+import { SupportChat } from "@/components/site/SupportChat";
 import { supabase } from "@/lib/supabaseClient";
+import { useAuth } from "@/lib/auth";
 
 const canais = [
   {
@@ -25,6 +27,7 @@ const canais = [
 ];
 
 export function Contato() {
+  const { user } = useAuth();
   const [enviado, setEnviado] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -39,6 +42,7 @@ export function Contato() {
       email: form.get("email"),
       subject: form.get("subject"),
       message: form.get("message"),
+      user_id: user?.id ?? null,
     });
     setEnviando(false);
     if (error) return setErro("Não foi possível enviar. Tente novamente em instantes.");
@@ -143,6 +147,8 @@ export function Contato() {
           )}
         </Reveal>
       </section>
+
+      <SupportChat />
     </div>
   );
 }

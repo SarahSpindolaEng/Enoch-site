@@ -24,6 +24,16 @@ import { supabase } from "@/lib/supabaseClient";
 import { formatPrice } from "@/lib/products";
 import { cn } from "@/lib/utils";
 
+function formatarCampo(key: string, valor: string): string {
+  if (key === "cep") {
+    const digitos = valor.replace(/\D/g, "").slice(0, 8);
+    return digitos.length > 5 ? `${digitos.slice(0, 5)}-${digitos.slice(5)}` : digitos;
+  }
+  if (key === "number") return valor.replace(/\D/g, "");
+  if (key === "state") return valor.replace(/[^a-zA-Z]/g, "").toUpperCase().slice(0, 2);
+  return valor;
+}
+
 const enderecoVazio: Address = {
   cep: "",
   street: "",
@@ -63,21 +73,22 @@ function EnderecoCartao() {
         className="mt-4 grid gap-3 rounded-2xl border border-border bg-surface p-5 sm:grid-cols-6"
       >
         {[
-          { key: "cep", label: "CEP", span: "sm:col-span-2" },
+          { key: "cep", label: "CEP", span: "sm:col-span-2", inputMode: "numeric" as const, maxLength: 9 },
           { key: "street", label: "Rua", span: "sm:col-span-4" },
-          { key: "number", label: "Número", span: "sm:col-span-2" },
-          { key: "complement", label: "Complemento (opcional)", span: "sm:col-span-4" },
+          { key: "number", label: "Número", span: "sm:col-span-2", inputMode: "numeric" as const },
+          { key: "complement", label: "Complemento", span: "sm:col-span-4" },
           { key: "neighborhood", label: "Bairro", span: "sm:col-span-3" },
           { key: "city", label: "Cidade", span: "sm:col-span-3" },
-          { key: "state", label: "UF", span: "sm:col-span-2" },
-        ].map(({ key, label, span }) => (
+          { key: "state", label: "UF", span: "sm:col-span-2", maxLength: 2 },
+        ].map(({ key, label, span, inputMode, maxLength }) => (
           <label key={key} className={cn("block", span)}>
             <span className="text-xs uppercase tracking-[0.14em] text-muted-foreground">{label}</span>
             <input
-              required={key !== "complement"}
+              required
               value={rascunho[key as keyof Address] ?? ""}
-              onChange={(e) => setRascunho({ ...rascunho, [key]: e.target.value })}
-              maxLength={key === "state" ? 2 : undefined}
+              onChange={(e) => setRascunho({ ...rascunho, [key]: formatarCampo(key, e.target.value) })}
+              inputMode={inputMode}
+              maxLength={maxLength}
               className="mt-1.5 w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm outline-none focus:border-primary/60"
             />
           </label>

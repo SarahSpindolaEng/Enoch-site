@@ -191,10 +191,16 @@ type ContactMessage = {
   message: string;
   status: "novo" | "lido";
   created_at: string;
+  user_id: string | null;
 };
+type ContactReply = { id: string; sender: "cliente" | "admin"; message: string; created_at: string };
 
 function MensagensTab() {
   const [mensagens, setMensagens] = useState<ContactMessage[] | null>(null);
+  const [threadAberta, setThreadAberta] = useState<string | null>(null);
+  const [respostas, setRespostas] = useState<Record<string, ContactReply[]>>({});
+  const [resposta, setResposta] = useState("");
+  const [enviando, setEnviando] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -215,8 +221,41 @@ function MensagensTab() {
     void supabase.from("contact_messages").update({ status: "lido" }).eq("id", id);
   };
 
-  const excluir = (id: string) => {
+  const abrirThread = async (m: ContactMessage) => {
+    const abrindo = threadAberta !== m.id;
+    setThreadAberta(abrindo ? m.id : null);
+    setResposta("");
+    if (m.status === "novo") marcarLida(m.id);
+    if (!abrindo || respostas[m.id]) return;
+    const { data } = await supabase
+      .from("contact_replies")
+      .select("id, sender, message, created_at")
+      .eq("thread_id", m.id)
+      .order("created_at", { ascending: true });
+    setRespostas((prev) => ({ ...prev, [m.id]: (data as ContactReply[] | null) ?? [] }));
+  };
+
+  const enviarResposta = async (threadId: string) => {
+    if (!resposta.trim()) return;
+    setEnviando(true);
+    const { data } = await supabase
+      .from("contact_replies")
+      .insert({ thread_id: threadId, sender: "admin", message: resposta.trim() })
+      .select()
+      .single();
+    setEnviando(false);
+    if (data) {
+      setRespostas((prev) => ({ ...prev, [threadId]: [...(prev[threadId] ?? []), data as ContactReply] }));
+      setResposta("");
+    }
+  };
+
+  // Apaga a mensagem e todas as respostas (contact_replies tem cascade) —
+  // usado quando o atendimento termina, pra não acumular histórico de chat
+  // sem necessidade nem guardar dado pessoal além do preciso.
+  const encerrar = (id: string) => {
     setMensagens((prev) => prev?.filter((m) => m.id !== id) ?? null);
+    if (threadAberta === id) setThreadAberta(null);
     void supabase.from("contact_messages").delete().eq("id", id);
   };
 
@@ -239,7 +278,11 @@ function MensagensTab() {
           )}
         >
           <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="min-w-0">
+            <button
+              type="button"
+              onClick={() => void abrirThread(m)}
+              className="min-w-0 flex-1 text-left"
+            >
               <p className="flex items-center gap-2 text-sm font-semibold">
                 {m.status === "novo" ? (
                   <span className="size-2 shrink-0 rounded-full bg-primary" />
@@ -248,30 +291,60 @@ function MensagensTab() {
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
                 {m.name} · {m.email} · {new Date(m.created_at).toLocaleString("pt-BR")}
+                {!m.user_id ? " · sem conta (não recebe resposta no site)" : ""}
               </p>
-            </div>
+            </button>
             <div className="flex shrink-0 gap-2">
-              {m.status === "novo" ? (
-                <button
-                  type="button"
-                  onClick={() => marcarLida(m.id)}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs text-muted-foreground hover:border-primary/40 hover:text-primary"
-                >
-                  <Check className="size-3.5" />
-                  Marcar como lida
-                </button>
-              ) : null}
               <button
                 type="button"
-                onClick={() => excluir(m.id)}
+                onClick={() => encerrar(m.id)}
                 className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs text-muted-foreground hover:border-red-400/50 hover:text-red-400"
               >
                 <Trash2 className="size-3.5" />
-                Excluir
+                Encerrar conversa
               </button>
             </div>
           </div>
           <p className="mt-3 whitespace-pre-wrap text-sm text-muted-foreground">{m.message}</p>
+
+          {threadAberta === m.id ? (
+            <div className="mt-4 border-t border-border pt-4">
+              <div className="grid gap-2">
+                {(respostas[m.id] ?? []).map((r) => (
+                  <div
+                    key={r.id}
+                    className={cn(
+                      "max-w-[80%] rounded-xl px-3.5 py-2 text-xs leading-relaxed",
+                      r.sender === "admin"
+                        ? "ml-auto bg-primary text-primary-foreground"
+                        : "bg-background text-foreground",
+                    )}
+                  >
+                    {r.message}
+                  </div>
+                ))}
+                {(respostas[m.id] ?? []).length === 0 ? (
+                  <p className="text-xs text-muted-foreground">Nenhuma resposta ainda.</p>
+                ) : null}
+              </div>
+              <div className="mt-3 flex gap-2">
+                <input
+                  value={resposta}
+                  onChange={(e) => setResposta(e.target.value)}
+                  placeholder={m.user_id ? "Responder…" : "Responder (cliente sem conta não verá isso no site)"}
+                  className="flex-1 rounded-full border border-input bg-background px-3.5 py-2 text-xs outline-none focus:border-primary/60"
+                />
+                <button
+                  type="button"
+                  onClick={() => void enviarResposta(m.id)}
+                  disabled={enviando || !resposta.trim()}
+                  className="rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground disabled:opacity-60"
+                >
+                  Enviar
+                </button>
+              </div>
+            </div>
+          ) : null}
         </div>
       ))}
     </div>
@@ -280,6 +353,8 @@ function MensagensTab() {
 
 type Especificacao = { label: string; value: string };
 
+type Cor = { name: string; value: string };
+
 type Rascunho = {
   name: string;
   brand: string;
@@ -287,11 +362,14 @@ type Rascunho = {
   tagline: string;
   description: string;
   price: number;
+  old_price: number | null;
+  badge: string | null;
   stock: number;
   installments: number;
   is_active: boolean;
   image_url: string | null;
   specs: Especificacao[];
+  colors: Cor[];
 };
 
 function paraRascunho(p: DbProduct): Rascunho {
@@ -302,11 +380,14 @@ function paraRascunho(p: DbProduct): Rascunho {
     tagline: p.tagline ?? "",
     description: p.description ?? "",
     price: p.price,
+    old_price: p.old_price,
+    badge: p.badge,
     stock: p.stock,
     installments: p.installments,
     is_active: p.is_active,
     image_url: p.image_url,
     specs: p.specs ?? [],
+    colors: p.colors ?? [],
   };
 }
 
@@ -317,11 +398,14 @@ const rascunhoVazio: Rascunho = {
   tagline: "",
   description: "",
   price: 0,
+  old_price: null,
+  badge: null,
   stock: 0,
   installments: 12,
   is_active: true,
   image_url: null,
   specs: [],
+  colors: [],
 };
 
 function ProdutosTab() {
@@ -579,6 +663,15 @@ function ProdutoLinhaEdicao({
   const removerSpec = (i: number) =>
     setRascunho({ ...rascunho, specs: rascunho.specs.filter((_, idx) => idx !== i) });
 
+  const atualizarCor = (i: number, patch: Partial<Cor>) => {
+    const colors = rascunho.colors.map((c, idx) => (idx === i ? { ...c, ...patch } : c));
+    setRascunho({ ...rascunho, colors });
+  };
+  const adicionarCor = () =>
+    setRascunho({ ...rascunho, colors: [...rascunho.colors, { name: "", value: "#000000" }] });
+  const removerCor = (i: number) =>
+    setRascunho({ ...rascunho, colors: rascunho.colors.filter((_, idx) => idx !== i) });
+
   return (
     <>
     <tr className="border-b border-border bg-primary/5">
@@ -733,6 +826,74 @@ function ProdutoLinhaEdicao({
               <span className="text-xs text-muted-foreground">vezes</span>
             </div>
           </label>
+
+          <label className="block">
+            <span className="text-xs uppercase tracking-[0.12em] text-muted-foreground">
+              Selo (badge, opcional)
+            </span>
+            <input
+              value={rascunho.badge ?? ""}
+              onChange={(e) => setRascunho({ ...rascunho, badge: e.target.value || null })}
+              placeholder="Ex: NOVO"
+              className="mt-1 w-full rounded-lg border border-input bg-surface px-3 py-2 text-sm outline-none"
+            />
+          </label>
+
+          <label className="block">
+            <span className="text-xs uppercase tracking-[0.12em] text-muted-foreground">
+              Preço antigo (riscado, opcional)
+            </span>
+            <input
+              type="number"
+              value={rascunho.old_price ?? ""}
+              onChange={(e) =>
+                setRascunho({ ...rascunho, old_price: e.target.value ? Number(e.target.value) : null })
+              }
+              placeholder="Ex: 1599"
+              className="mt-1 w-full rounded-lg border border-input bg-surface px-3 py-2 text-sm outline-none"
+            />
+          </label>
+
+          <div className="sm:col-span-2">
+            <span className="text-xs uppercase tracking-[0.12em] text-muted-foreground">
+              Cores disponíveis
+            </span>
+            <div className="mt-1.5 space-y-2">
+              {rascunho.colors.map((cor, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={/^#[0-9a-fA-F]{6}$/.test(cor.value) ? cor.value : "#000000"}
+                    onChange={(e) => atualizarCor(i, { value: e.target.value })}
+                    className="size-9 shrink-0 cursor-pointer rounded-lg border border-input bg-surface p-0.5"
+                    aria-label="Escolher cor"
+                  />
+                  <input
+                    value={cor.name}
+                    onChange={(e) => atualizarCor(i, { name: e.target.value })}
+                    placeholder="Ex: Preto grafite"
+                    className="flex-1 rounded-lg border border-input bg-surface px-3 py-1.5 text-sm outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removerCor(i)}
+                    className="grid size-8 shrink-0 place-items-center rounded-lg border border-border text-muted-foreground hover:border-red-400/50 hover:text-red-400"
+                    aria-label="Remover cor"
+                  >
+                    <X className="size-3.5" />
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={adicionarCor}
+                className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs text-muted-foreground hover:border-primary/40 hover:text-primary"
+              >
+                <Plus className="size-3.5" />
+                Adicionar cor
+              </button>
+            </div>
+          </div>
 
           <div className="sm:col-span-2">
             <span className="text-xs uppercase tracking-[0.12em] text-muted-foreground">
