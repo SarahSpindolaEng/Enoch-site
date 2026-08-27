@@ -206,12 +206,21 @@ type ContactMessage = {
   order_id: string | null;
 };
 type ContactReply = { id: string; sender: "cliente" | "admin"; message: string; created_at: string };
+type ProdutoRef = { slug: string; image_url: string | null };
 type PedidoVinculadoItem = {
   product_name: string;
   quantity: number;
   unit_price: number;
-  products: { slug: string; image_url: string | null }[] | null;
+  // O embed do Supabase pode vir como objeto único ou como array de 1,
+  // dependendo de como o PostgREST resolve a relação — sem tipos gerados
+  // do banco, o TS não garante qual; normaliza os dois formatos.
+  products: ProdutoRef | ProdutoRef[] | null;
 };
+
+function primeiroProduto(products: PedidoVinculadoItem["products"]): ProdutoRef | null {
+  if (!products) return null;
+  return Array.isArray(products) ? (products[0] ?? null) : products;
+}
 type PedidoVinculado = {
   id: string;
   status: string;
@@ -288,10 +297,17 @@ function MensagensTab() {
   // Apaga a mensagem e todas as respostas (contact_replies tem cascade) —
   // usado quando o atendimento termina, pra não acumular histórico de chat
   // sem necessidade nem guardar dado pessoal além do preciso.
-  const encerrar = (id: string) => {
+  const encerrar = async (id: string) => {
+    const anterior = mensagens;
     setMensagens((prev) => prev?.filter((m) => m.id !== id) ?? null);
     if (threadAberta === id) setThreadAberta(null);
-    void supabase.from("contact_messages").delete().eq("id", id);
+    const { error } = await supabase.from("contact_messages").delete().eq("id", id);
+    if (error) {
+      // Se falhar (ex: sessão perdeu o 2FA), desfaz o "apagar" na tela em
+      // vez de deixar a lista mentindo até o próximo refresh.
+      setMensagens(anterior);
+      alert("Não foi possível encerrar a conversa. Se o aviso de 2FA aparecer, confirme o código e tente de novo.");
+    }
   };
 
   if (mensagens === null) return <p className="text-sm text-muted-foreground">Carregando…</p>;
@@ -332,7 +348,7 @@ function MensagensTab() {
             <div className="flex shrink-0 gap-2">
               <button
                 type="button"
-                onClick={() => encerrar(m.id)}
+                onClick={() => void encerrar(m.id)}
                 className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs text-muted-foreground hover:border-red-400/50 hover:text-red-400"
               >
                 <Trash2 className="size-3.5" />
@@ -367,7 +383,7 @@ function MensagensTab() {
                       </div>
                       <div className="mt-2 grid gap-1.5">
                         {pedido.order_items.map((item, i) => {
-                          const produto = item.products?.[0];
+                          const produto = primeiroProduto(item.products);
                           const conteudo = (
                             <>
                               <span className="grid size-9 shrink-0 place-items-center overflow-hidden rounded-lg border border-border bg-background">
