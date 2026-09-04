@@ -1,12 +1,15 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { CheckCircle2, MapPin, Minus, Plus, ShoppingBag, Trash2 } from "lucide-react";
+import { CheckCircle2, MapPin, Minus, Plus, ShoppingBag, Truck, Trash2 } from "lucide-react";
 import { Reveal } from "@/components/site/Reveal";
 import { ProductArt } from "@/components/site/ProductArt";
 import { formatPrice, useProducts } from "@/lib/products";
 import { useCart } from "@/lib/cart";
 import { useAuth } from "@/lib/auth";
 import { useAddress } from "@/lib/address";
+import { supabase } from "@/lib/supabaseClient";
+
+type OpcaoFrete = { id: number; empresa: string; servico: string; preco: number; prazoDias: number };
 
 export function Carrinho() {
   const { lines, setQty, removeFromCart, subtotal, checkout } = useCart();
@@ -18,7 +21,41 @@ export function Carrinho() {
   const [erro, setErro] = useState<string | null>(null);
   const [pedidoId, setPedidoId] = useState<string | null>(null);
 
-  const frete = subtotal > 0 && subtotal < 499 ? 39 : 0;
+  const [opcoesFrete, setOpcoesFrete] = useState<OpcaoFrete[] | null>(null);
+  const [carregandoFrete, setCarregandoFrete] = useState(false);
+  const [erroFrete, setErroFrete] = useState<string | null>(null);
+  const [freteEscolhido, setFreteEscolhido] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!address?.cep || lines.length === 0) {
+      setOpcoesFrete(null);
+      return;
+    }
+    let active = true;
+    setCarregandoFrete(true);
+    setErroFrete(null);
+    supabase.functions
+      .invoke("calculate-shipping", { body: { cep: address.cep, items: lines } })
+      .then(({ data, error }) => {
+        if (!active) return;
+        setCarregandoFrete(false);
+        if (error || !data?.opcoes?.length) {
+          setErroFrete("Não foi possível calcular o frete pro seu endereço agora.");
+          setOpcoesFrete(null);
+          return;
+        }
+        const ordenadas = [...data.opcoes].sort((a, b) => a.preco - b.preco);
+        setOpcoesFrete(ordenadas);
+        setFreteEscolhido(ordenadas[0].id);
+      });
+    return () => {
+      active = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [address?.cep, lines.length]);
+
+  const opcaoAtual = opcoesFrete?.find((o) => o.id === freteEscolhido) ?? null;
+  const frete = opcaoAtual?.preco ?? 0;
   const total = subtotal + frete;
 
   const handleCheckout = async () => {
@@ -155,13 +192,54 @@ export function Carrinho() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Frete</span>
-                  <span>{frete === 0 ? "Grátis" : formatPrice(frete)}</span>
+                  <span>
+                    {!address ? "—" : carregandoFrete ? "Calculando…" : opcaoAtual ? formatPrice(frete) : "—"}
+                  </span>
                 </div>
                 <div className="flex justify-between border-t border-border pt-3 text-base font-semibold">
                   <span>Total</span>
                   <span>{formatPrice(total)}</span>
                 </div>
               </div>
+
+              {!address ? null : erroFrete ? (
+                <p className="mt-3 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                  {erroFrete}
+                </p>
+              ) : opcoesFrete && opcoesFrete.length > 0 ? (
+                <div className="mt-4 grid gap-2">
+                  <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                    <Truck className="size-3.5" />
+                    Opções de envio
+                  </p>
+                  {opcoesFrete.map((o) => (
+                    <label
+                      key={o.id}
+                      className={`flex cursor-pointer items-center justify-between gap-3 rounded-xl border px-3.5 py-2.5 text-xs transition-colors ${
+                        freteEscolhido === o.id ? "border-primary/50 bg-primary/5" : "border-border"
+                      }`}
+                    >
+                      <span className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="frete"
+                          checked={freteEscolhido === o.id}
+                          onChange={() => setFreteEscolhido(o.id)}
+                          className="accent-primary"
+                        />
+                        <span>
+                          <span className="font-medium text-foreground">
+                            {o.empresa} — {o.servico}
+                          </span>
+                          <br />
+                          <span className="text-muted-foreground">até {o.prazoDias} dias úteis</span>
+                        </span>
+                      </span>
+                      <span className="font-semibold">{formatPrice(o.preco)}</span>
+                    </label>
+                  ))}
+                </div>
+              ) : null}
 
               {user ? (
                 <div className="mt-5 flex items-start justify-between gap-3 rounded-xl border border-border bg-background px-4 py-3 text-xs">
@@ -196,15 +274,19 @@ export function Carrinho() {
               <button
                 type="button"
                 onClick={handleCheckout}
-                disabled={carregando}
+                disabled={carregando || (user ? !address || !opcaoAtual : false)}
                 className="mt-6 w-full rounded-full bg-primary px-7 py-3.5 text-sm font-semibold text-primary-foreground transition-all duration-300 hover:brightness-110 hover:shadow-[0_0_40px_-10px_var(--primary)] active:scale-[0.99] disabled:opacity-60"
               >
                 {carregando ? "Processando…" : "Finalizar compra"}
               </button>
               <p className="mt-3 text-center text-xs text-muted-foreground">
-                {user
-                  ? "Pagamento ainda não conectado — o pedido fica registrado como pendente."
-                  : "Você precisa entrar na sua conta para finalizar a compra."}
+                {!user
+                  ? "Você precisa entrar na sua conta para finalizar a compra."
+                  : !address
+                    ? "Cadastre um endereço pra calcular o frete e finalizar a compra."
+                    : !opcaoAtual
+                      ? "Escolha uma opção de envio pra continuar."
+                      : "Pagamento ainda não conectado — o pedido fica registrado como pendente."}
               </p>
             </div>
           </Reveal>
