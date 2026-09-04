@@ -46,7 +46,56 @@
     <link rel="apple-touch-icon" href="/favicon.webp" />
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- Loader estático puro CSS/HTML, some sozinho assim que o React
+           monta (o render substitui todo o conteúdo do #root). Cobre o
+           instante entre a página abrir e o app carregar de verdade. -->
+      <div id="boot-loader">
+        <img src="/favicon.webp" alt="" />
+        <div class="boot-dots">
+          <span style="animation-delay: 0ms"></span>
+          <span style="animation-delay: 120ms"></span>
+          <span style="animation-delay: 240ms"></span>
+        </div>
+      </div>
+      <style>
+        #boot-loader {
+          position: fixed;
+          inset: 0;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 16px;
+          background: #0b0c10;
+        }
+        #boot-loader img {
+          width: 44px;
+          height: auto;
+          animation: boot-pulse 1.6s ease-in-out infinite;
+        }
+        .boot-dots {
+          display: flex;
+          gap: 6px;
+        }
+        .boot-dots span {
+          width: 6px;
+          height: 6px;
+          border-radius: 9999px;
+          background: #2d6cff;
+          display: inline-block;
+          animation: boot-bounce 1.2s infinite;
+        }
+        @keyframes boot-pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.45; }
+        }
+        @keyframes boot-bounce {
+          0%, 80%, 100% { transform: translateY(0); opacity: 0.5; }
+          40% { transform: translateY(-6px); opacity: 1; }
+        }
+      </style>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
