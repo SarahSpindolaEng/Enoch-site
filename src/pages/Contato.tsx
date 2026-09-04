@@ -11,8 +11,8 @@ const canais = [
   {
     Icon: MessageCircle,
     title: "WhatsApp",
-    value: "(62) 9314-5116",
-    href: "https://wa.me/556293145116",
+    value: "(62) 98238-4648",
+    href: "https://wa.me/5562982384648",
   },
   {
     Icon: Instagram,

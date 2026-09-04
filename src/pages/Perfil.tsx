@@ -336,7 +336,7 @@ function TimelinePedido({ pedido }: { pedido: Pedido }) {
   );
 }
 
-const WHATSAPP_SUPORTE = "556293145116";
+const WHATSAPP_SUPORTE = "5562982384648";
 
 function primeiroProduto(products: PedidoItem["products"]): { slug: string } | null {
   if (!products) return null;
