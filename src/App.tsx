@@ -20,7 +20,6 @@ import { NotFound } from "@/pages/NotFound";
 
 // Painel admin só carrega quando alguém acessa /admin — mantém esse código
 // (e as libs que ele puxa) fora do bundle que todo cliente baixa.
-const AdminLogin = lazy(() => import("@/pages/admin/AdminLogin").then((m) => ({ default: m.AdminLogin })));
 const AdminDashboard = lazy(() =>
   import("@/pages/admin/AdminDashboard").then((m) => ({ default: m.AdminDashboard })),
 );
@@ -40,14 +39,6 @@ export default function App() {
         <CartProvider>
           <ScrollToTop />
           <Routes>
-            <Route
-              path="admin/login"
-              element={
-                <Suspense fallback={<LoadingScreen />}>
-                  <AdminLogin />
-                </Suspense>
-              }
-            />
             <Route
               path="admin"
               element={

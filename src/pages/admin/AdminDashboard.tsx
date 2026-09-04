@@ -5,7 +5,6 @@ import {
   ImagePlus,
   LayoutGrid,
   LogOut,
-  Mail,
   Pencil,
   Plus,
   ShieldAlert,
@@ -191,284 +190,6 @@ function PedidosTab() {
           })}
         </tbody>
       </table>
-    </div>
-  );
-}
-
-type ContactMessage = {
-  id: string;
-  name: string;
-  email: string;
-  subject: string;
-  message: string;
-  status: "novo" | "lido";
-  created_at: string;
-  user_id: string | null;
-  order_id: string | null;
-};
-type ContactReply = { id: string; sender: "cliente" | "admin"; message: string; created_at: string };
-type ProdutoRef = { slug: string; image_url: string | null };
-type PedidoVinculadoItem = {
-  product_name: string;
-  quantity: number;
-  unit_price: number;
-  // O embed do Supabase pode vir como objeto único ou como array de 1,
-  // dependendo de como o PostgREST resolve a relação — sem tipos gerados
-  // do banco, o TS não garante qual; normaliza os dois formatos.
-  products: ProdutoRef | ProdutoRef[] | null;
-};
-
-function primeiroProduto(products: PedidoVinculadoItem["products"]): ProdutoRef | null {
-  if (!products) return null;
-  return Array.isArray(products) ? (products[0] ?? null) : products;
-}
-type PedidoVinculado = {
-  id: string;
-  status: string;
-  created_at: string;
-  order_items: PedidoVinculadoItem[];
-};
-
-function MensagensTab() {
-  const [mensagens, setMensagens] = useState<ContactMessage[] | null>(null);
-  const [threadAberta, setThreadAberta] = useState<string | null>(null);
-  const [respostas, setRespostas] = useState<Record<string, ContactReply[]>>({});
-  const [pedidosVinculados, setPedidosVinculados] = useState<Record<string, PedidoVinculado>>({});
-  const [resposta, setResposta] = useState("");
-  const [enviando, setEnviando] = useState(false);
-
-  useEffect(() => {
-    let active = true;
-    supabase
-      .from("contact_messages")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .then(({ data }) => {
-        if (active) setMensagens((data as ContactMessage[] | null) ?? []);
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  const marcarLida = (id: string) => {
-    setMensagens((prev) => prev?.map((m) => (m.id === id ? { ...m, status: "lido" } : m)) ?? null);
-    void supabase.from("contact_messages").update({ status: "lido" }).eq("id", id);
-  };
-
-  const abrirThread = async (m: ContactMessage) => {
-    const abrindo = threadAberta !== m.id;
-    setThreadAberta(abrindo ? m.id : null);
-    setResposta("");
-    if (m.status === "novo") marcarLida(m.id);
-    if (!abrindo) return;
-    if (!respostas[m.id]) {
-      const { data } = await supabase
-        .from("contact_replies")
-        .select("id, sender, message, created_at")
-        .eq("thread_id", m.id)
-        .order("created_at", { ascending: true });
-      setRespostas((prev) => ({ ...prev, [m.id]: (data as ContactReply[] | null) ?? [] }));
-    }
-    if (m.order_id && !pedidosVinculados[m.order_id]) {
-      const { data } = await supabase
-        .from("orders")
-        .select("id, status, created_at, order_items(product_name, quantity, unit_price, products(slug, image_url))")
-        .eq("id", m.order_id)
-        .single();
-      if (data) setPedidosVinculados((prev) => ({ ...prev, [m.order_id as string]: data as PedidoVinculado }));
-    }
-  };
-
-  const enviarResposta = async (threadId: string) => {
-    if (!resposta.trim()) return;
-    setEnviando(true);
-    const { data } = await supabase
-      .from("contact_replies")
-      .insert({ thread_id: threadId, sender: "admin", message: resposta.trim() })
-      .select()
-      .single();
-    setEnviando(false);
-    if (data) {
-      setRespostas((prev) => ({ ...prev, [threadId]: [...(prev[threadId] ?? []), data as ContactReply] }));
-      setResposta("");
-    }
-  };
-
-  // Apaga a mensagem e todas as respostas (contact_replies tem cascade) —
-  // usado quando o atendimento termina, pra não acumular histórico de chat
-  // sem necessidade nem guardar dado pessoal além do preciso.
-  const encerrar = async (id: string) => {
-    const anterior = mensagens;
-    setMensagens((prev) => prev?.filter((m) => m.id !== id) ?? null);
-    if (threadAberta === id) setThreadAberta(null);
-    const { error } = await supabase.from("contact_messages").delete().eq("id", id);
-    if (error) {
-      // Se falhar (ex: sessão perdeu o 2FA), desfaz o "apagar" na tela em
-      // vez de deixar a lista mentindo até o próximo refresh.
-      setMensagens(anterior);
-      alert("Não foi possível encerrar a conversa. Se o aviso de 2FA aparecer, confirme o código e tente de novo.");
-    }
-  };
-
-  if (mensagens === null) return <p className="text-sm text-muted-foreground">Carregando…</p>;
-  if (mensagens.length === 0)
-    return (
-      <p className="rounded-2xl border border-border bg-surface p-5 text-sm text-muted-foreground">
-        Nenhuma mensagem ainda.
-      </p>
-    );
-
-  return (
-    <div className="grid gap-3">
-      {mensagens.map((m) => (
-        <div
-          key={m.id}
-          className={cn(
-            "rounded-2xl border p-5",
-            m.status === "novo" ? "border-primary/40 bg-primary/5" : "border-border bg-surface",
-          )}
-        >
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <button
-              type="button"
-              onClick={() => void abrirThread(m)}
-              className="min-w-0 flex-1 text-left"
-            >
-              <p className="flex items-center gap-2 text-sm font-semibold">
-                {m.status === "novo" ? (
-                  <span className="size-2 shrink-0 rounded-full bg-primary" />
-                ) : null}
-                {m.subject}
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {m.name} · {m.email} · {new Date(m.created_at).toLocaleString("pt-BR")}
-                {!m.user_id ? " · sem conta (não recebe resposta no site)" : ""}
-              </p>
-            </button>
-            <div className="flex shrink-0 gap-2">
-              <button
-                type="button"
-                onClick={() => void encerrar(m.id)}
-                className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs text-muted-foreground hover:border-red-400/50 hover:text-red-400"
-              >
-                <Trash2 className="size-3.5" />
-                Encerrar conversa
-              </button>
-            </div>
-          </div>
-          {threadAberta === m.id ? (
-            // Mesmo layout do chat que o cliente vê: a mensagem original
-            // entra como o primeiro balão da conversa, seguida das
-            // respostas em ordem — não só um texto solto acima do chat.
-            <div className="mt-4 border-t border-border pt-4">
-              {m.order_id ? (
-                (() => {
-                  const pedido = pedidosVinculados[m.order_id];
-                  if (!pedido) return <p className="mb-3 text-xs text-muted-foreground">Carregando pedido…</p>;
-                  return (
-                    <div className="mb-3 rounded-xl border border-primary/25 bg-primary/[0.06] p-3.5">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <p className="text-xs font-semibold">Pedido #{pedido.id.slice(0, 8)}</p>
-                        <span
-                          className={cn(
-                            "rounded-full border px-2.5 py-0.5 text-[11px] font-medium",
-                            pedido.status === "entregue"
-                              ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-300"
-                              : "border-amber-400/30 bg-amber-400/10 text-amber-300",
-                          )}
-                        >
-                          {pedido.status === "entregue" ? "Entregue" : "Ainda não entregue"} ·{" "}
-                          {statusLabel[pedido.status] ?? pedido.status}
-                        </span>
-                      </div>
-                      <div className="mt-3 grid gap-2">
-                        {pedido.order_items.map((item, i) => {
-                          const produto = primeiroProduto(item.products);
-                          const conteudo = (
-                            <>
-                              <span className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-xl border border-border bg-background">
-                                {produto?.image_url ? (
-                                  <img
-                                    src={produto.image_url}
-                                    alt=""
-                                    className="size-full object-cover"
-                                  />
-                                ) : (
-                                  <ImagePlus className="size-5 text-muted-foreground" />
-                                )}
-                              </span>
-                              <span className="min-w-0 flex-1">
-                                <span className="block truncate text-sm font-semibold text-foreground">
-                                  {item.product_name}
-                                </span>
-                                <span className="mt-1 inline-flex items-center gap-1 rounded-full border border-border bg-background px-2 py-0.5 text-[11px] text-muted-foreground">
-                                  {item.quantity}x · {formatPrice(item.unit_price)}
-                                </span>
-                              </span>
-                            </>
-                          );
-                          return produto?.slug ? (
-                            <a
-                              key={i}
-                              href={`${window.location.pathname}#/produtos/${produto.slug}`}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="flex items-center gap-3 rounded-xl border border-transparent p-2 transition-all duration-200 hover:border-primary/30 hover:bg-background"
-                            >
-                              {conteudo}
-                            </a>
-                          ) : (
-                            <div key={i} className="flex items-center gap-3 p-2">
-                              {conteudo}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })()
-              ) : null}
-              <div className="grid gap-2">
-                <div className="max-w-[80%] rounded-xl bg-background px-3.5 py-2 text-xs leading-relaxed text-foreground">
-                  {m.message}
-                </div>
-                {(respostas[m.id] ?? []).map((r) => (
-                  <div
-                    key={r.id}
-                    className={cn(
-                      "max-w-[80%] rounded-xl px-3.5 py-2 text-xs leading-relaxed",
-                      r.sender === "admin"
-                        ? "ml-auto bg-primary text-primary-foreground"
-                        : "bg-background text-foreground",
-                    )}
-                  >
-                    {r.message}
-                  </div>
-                ))}
-              </div>
-              <div className="mt-3 flex gap-2">
-                <input
-                  value={resposta}
-                  onChange={(e) => setResposta(e.target.value)}
-                  placeholder={m.user_id ? "Responder…" : "Responder (cliente sem conta não verá isso no site)"}
-                  className="flex-1 rounded-full border border-input bg-background px-3.5 py-2 text-xs outline-none focus:border-primary/60"
-                />
-                <button
-                  type="button"
-                  onClick={() => void enviarResposta(m.id)}
-                  disabled={enviando || !resposta.trim()}
-                  className="rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground disabled:opacity-60"
-                >
-                  Enviar
-                </button>
-              </div>
-            </div>
-          ) : (
-            <p className="mt-3 line-clamp-2 text-sm text-muted-foreground">{m.message}</p>
-          )}
-        </div>
-      ))}
     </div>
   );
 }
@@ -1065,7 +786,7 @@ function ProdutoLinhaEdicao({
 
 export function AdminDashboard() {
   const { isAdmin, precisaAtivar2FA, loading, logout, recarregar } = useAdminAuth();
-  const [aba, setAba] = useState<"pedidos" | "produtos" | "mensagens">("pedidos");
+  const [aba, setAba] = useState<"pedidos" | "produtos">("pedidos");
 
   if (loading) {
     return <LoadingScreen />;
@@ -1104,7 +825,7 @@ export function AdminDashboard() {
     );
   }
 
-  if (!isAdmin) return <Navigate to="/admin/login" replace />;
+  if (!isAdmin) return <Navigate to="/login" replace />;
 
   return (
     <div className="min-h-screen bg-background">
@@ -1164,24 +885,9 @@ export function AdminDashboard() {
             <LayoutGrid className="size-4" />
             Produtos
           </button>
-          <button
-            type="button"
-            onClick={() => setAba("mensagens")}
-            className={cn(
-              "flex items-center gap-2 border-b-2 px-1 pb-3 text-sm font-medium transition-colors",
-              aba === "mensagens"
-                ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground",
-            )}
-          >
-            <Mail className="size-4" />
-            Mensagens
-          </button>
         </div>
 
-        <div className="mt-6">
-          {aba === "pedidos" ? <PedidosTab /> : aba === "produtos" ? <ProdutosTab /> : <MensagensTab />}
-        </div>
+        <div className="mt-6">{aba === "pedidos" ? <PedidosTab /> : <ProdutosTab />}</div>
       </main>
     </div>
   );

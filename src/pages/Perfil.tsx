@@ -17,7 +17,6 @@ import {
 } from "lucide-react";
 import { Reveal } from "@/components/site/Reveal";
 import { ContaSeguranca } from "@/components/site/ContaSeguranca";
-import { useOpenSupportThread } from "@/components/site/SupportChat";
 import { useAuth } from "@/lib/auth";
 import { useAdminAuth } from "@/lib/adminAuth";
 import { useCart } from "@/lib/cart";
@@ -190,7 +189,12 @@ function EnderecoCartao() {
   );
 }
 
-type PedidoItem = { product_name: string; quantity: number; unit_price: number };
+type PedidoItem = {
+  product_name: string;
+  quantity: number;
+  unit_price: number;
+  products: { slug: string } | { slug: string }[] | null;
+};
 type Pedido = {
   id: string;
   status: string;
@@ -332,100 +336,39 @@ function TimelinePedido({ pedido }: { pedido: Pedido }) {
   );
 }
 
-function SuporteCartao() {
-  const { user } = useAuth();
-  const abrirThread = useOpenSupportThread();
-  const [subject, setSubject] = useState("");
-  const [message, setMessage] = useState("");
-  const [enviando, setEnviando] = useState(false);
-  const [erro, setErro] = useState<string | null>(null);
+const WHATSAPP_SUPORTE = "556293145116";
 
-  const enviar = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!user) return;
-    setErro(null);
-    setEnviando(true);
-    const { data, error } = await supabase
-      .from("contact_messages")
-      .insert({ name: user.name, email: user.email, subject, message, user_id: user.id })
-      .select("id")
-      .single();
-    setEnviando(false);
-    if (error || !data) return setErro("Não foi possível enviar. Tente novamente.");
-    setSubject("");
-    setMessage("");
-    abrirThread(data.id as string);
-  };
-
-  return (
-    <form onSubmit={enviar} className="mt-4 grid gap-3 rounded-2xl border border-border bg-surface p-5">
-      <label className="block">
-        <span className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Assunto</span>
-        <input
-          required
-          value={subject}
-          onChange={(e) => setSubject(e.target.value)}
-          placeholder="Como podemos ajudar?"
-          className="mt-1.5 w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm outline-none focus:border-primary/60"
-        />
-      </label>
-      <label className="block">
-        <span className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Mensagem</span>
-        <textarea
-          required
-          rows={3}
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          placeholder="Escreva sua dúvida ou pedido"
-          className="mt-1.5 w-full resize-none rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm outline-none focus:border-primary/60"
-        />
-      </label>
-      {erro ? (
-        <p className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-2.5 text-xs text-destructive">
-          {erro}
-        </p>
-      ) : null}
-      <button
-        type="submit"
-        disabled={enviando}
-        className="w-fit rounded-full bg-primary px-5 py-2 text-xs font-semibold text-primary-foreground transition-all duration-300 hover:brightness-110 disabled:opacity-60"
-      >
-        {enviando ? "Enviando…" : "Enviar mensagem"}
-      </button>
-    </form>
-  );
+function primeiroProduto(products: PedidoItem["products"]): { slug: string } | null {
+  if (!products) return null;
+  return Array.isArray(products) ? (products[0] ?? null) : products;
 }
 
-function SuportePedido({ pedidoId }: { pedidoId: string }) {
-  const { user } = useAuth();
-  const abrirThread = useOpenSupportThread();
+// Sem chat ao vivo no site (o admin não ia acompanhar) — o pedido de ajuda
+// vira uma mensagem pronta que abre direto no WhatsApp, com o link de cada
+// produto do pedido e o que a pessoa escreveu. Zero backend, zero risco de
+// mensagem parada esperando resposta que não vem.
+function SuportePedido({ pedido }: { pedido: Pedido }) {
   const [aberto, setAberto] = useState(false);
-  const [message, setMessage] = useState("");
-  const [enviando, setEnviando] = useState(false);
-  const [erro, setErro] = useState<string | null>(null);
+  const [mensagem, setMensagem] = useState("");
 
-  const enviar = async (e: FormEvent) => {
+  const enviar = (e: FormEvent) => {
     e.preventDefault();
-    if (!user) return;
-    setErro(null);
-    setEnviando(true);
-    const { data, error } = await supabase
-      .from("contact_messages")
-      .insert({
-        name: user.name,
-        email: user.email,
-        subject: `Pedido #${pedidoId.slice(0, 8)}`,
-        message,
-        user_id: user.id,
-        order_id: pedidoId,
+    const linkBase = `${window.location.origin}${window.location.pathname}#/produtos/`;
+    const itens = pedido.order_items
+      .map((item) => {
+        const produto = primeiroProduto(item.products);
+        return produto?.slug
+          ? `${item.quantity}x ${item.product_name} (${linkBase}${produto.slug})`
+          : `${item.quantity}x ${item.product_name}`;
       })
-      .select("id")
-      .single();
-    setEnviando(false);
-    if (error || !data) return setErro("Não foi possível enviar. Tente novamente.");
-    setMessage("");
+      .join("\n");
+    const texto =
+      `Olá! Preciso de ajuda com o pedido #${pedido.id.slice(0, 8)}.\n\n` +
+      `Itens:\n${itens}\n\n` +
+      `Problema: ${mensagem}`;
+    window.open(`https://wa.me/${WHATSAPP_SUPORTE}?text=${encodeURIComponent(texto)}`, "_blank");
+    setMensagem("");
     setAberto(false);
-    abrirThread(data.id as string);
   };
 
   if (!aberto) {
@@ -444,26 +387,26 @@ function SuportePedido({ pedidoId }: { pedidoId: string }) {
   return (
     <form onSubmit={enviar} className="mt-4 grid gap-2.5 rounded-xl border border-border bg-background p-4">
       <p className="text-xs text-muted-foreground">
-        Conte o que houve com o pedido #{pedidoId.slice(0, 8)} — a conversa já vem com os dados
-        dele pro suporte ver certinho.
+        Conte o que houve com o pedido #{pedido.id.slice(0, 8)} — ao enviar, abre o WhatsApp com uma
+        mensagem já pronta, com o link dos produtos e o que você escrever aqui.
       </p>
       <textarea
         required
         autoFocus
         rows={3}
-        value={message}
-        onChange={(e) => setMessage(e.target.value)}
+        value={mensagem}
+        onChange={(e) => setMensagem(e.target.value)}
         placeholder="Ex: o produto não chegou, veio com defeito, quero trocar…"
         className="w-full resize-none rounded-lg border border-input bg-surface px-3 py-2 text-sm outline-none focus:border-primary/60"
       />
-      {erro ? <p className="text-xs text-destructive">{erro}</p> : null}
       <div className="flex gap-2">
         <button
           type="submit"
-          disabled={enviando || !message.trim()}
-          className="rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground disabled:opacity-60"
+          disabled={!mensagem.trim()}
+          className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground disabled:opacity-60"
         >
-          {enviando ? "Enviando…" : "Enviar"}
+          <MessageCircle className="size-3.5" />
+          Abrir no WhatsApp
         </button>
         <button
           type="button"
@@ -527,7 +470,7 @@ function PedidoCard({ pedido }: { pedido: Pedido }) {
           </div>
 
           <TimelinePedido pedido={pedido} />
-          <SuportePedido pedidoId={pedido.id} />
+          <SuportePedido pedido={pedido} />
         </div>
       ) : null}
     </div>
@@ -549,7 +492,7 @@ export function Perfil() {
     supabase
       .from("orders")
       .select(
-        "id, status, total, created_at, tracking_code, tracking_url, expires_at, order_items(product_name, quantity, unit_price)",
+        "id, status, total, created_at, tracking_code, tracking_url, expires_at, order_items(product_name, quantity, unit_price, products(slug))",
       )
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
@@ -652,14 +595,6 @@ export function Perfil() {
         <Reveal className="mt-10">
           <h2 className="text-lg font-semibold">Endereço</h2>
           <EnderecoCartao />
-        </Reveal>
-
-        <Reveal className="mt-10">
-          <h2 className="flex items-center gap-2 text-lg font-semibold">
-            <MessageCircle className="size-4 text-primary" />
-            Entrar em contato com o suporte
-          </h2>
-          <SuporteCartao />
         </Reveal>
 
         <Reveal className="mt-10">
