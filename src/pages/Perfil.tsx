@@ -52,39 +52,59 @@ function EnderecoCartao() {
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [buscandoCep, setBuscandoCep] = useState(false);
-  const [cepInvalido, setCepInvalido] = useState(false);
+  const [cepValidado, setCepValidado] = useState(false);
+  // Campos que vieram prontos do ViaCEP ficam travados (não dá pra
+  // inventar rua/cidade diferente do CEP real); os que o ViaCEP devolveu
+  // vazios (comum em CEP de cidade pequena, sem logradouro específico)
+  // continuam editáveis, porque não tem "valor real" pra travar contra.
+  const [camposTravados, setCamposTravados] = useState<Set<string>>(new Set());
+  const [semNumero, setSemNumero] = useState(false);
 
   const iniciarEdicao = () => {
-    setRascunho(address ?? enderecoVazio);
+    const base = address ?? enderecoVazio;
+    setRascunho(base);
     setErro(null);
-    setCepInvalido(false);
+    setSemNumero(base.number === "S/N");
+    // Endereço já salvo antes passou por essa validação na hora — reabrir
+    // pra editar não devia forçar re-digitar o CEP inteiro de novo.
+    setCepValidado(Boolean(address));
+    setCamposTravados(
+      address ? new Set(["street", "neighborhood", "city", "state"].filter((k) => address[k as keyof Address])) : new Set(),
+    );
     setEditando(true);
   };
 
-  // Consulta o CEP no ViaCEP (base oficial dos Correios) — confirma que o
-  // CEP existe de verdade e já preenche rua/bairro/cidade/UF, mas os campos
-  // continuam editáveis: é só um ponto de partida, não trava o valor.
+  // Consulta o CEP no ViaCEP (base oficial dos Correios) — exige que o CEP
+  // exista de verdade pra liberar salvar, e trava rua/bairro/cidade/UF nos
+  // valores reais devolvidos (só número e complemento continuam livres).
   const buscarCep = async (cepFormatado: string) => {
     const digitos = cepFormatado.replace(/\D/g, "");
+    setCepValidado(false);
+    setCamposTravados(new Set());
     if (digitos.length !== 8) return;
-    setCepInvalido(false);
     setBuscandoCep(true);
     try {
       const resposta = await fetch(`https://viacep.com.br/ws/${digitos}/json/`);
       const dados = await resposta.json();
       if (dados.erro) {
-        setCepInvalido(true);
+        setErro("CEP não encontrado. Só aceitamos CEPs reais.");
       } else {
         setRascunho((prev) => ({
           ...prev,
           street: dados.logradouro || prev.street,
           neighborhood: dados.bairro || prev.neighborhood,
-          city: dados.localidade || prev.city,
-          state: dados.uf || prev.state,
+          city: dados.localidade,
+          state: dados.uf,
         }));
+        const travados = new Set<string>(["city", "state"]);
+        if (dados.logradouro) travados.add("street");
+        if (dados.bairro) travados.add("neighborhood");
+        setCamposTravados(travados);
+        setCepValidado(true);
+        setErro(null);
       }
     } catch {
-      // API fora do ar não deve travar o cadastro — a pessoa preenche na mão
+      setErro("Não foi possível confirmar o CEP agora. Tente de novo em instantes.");
     } finally {
       setBuscandoCep(false);
     }
@@ -92,8 +112,10 @@ function EnderecoCartao() {
 
   const salvarEndereco = async (e: FormEvent) => {
     e.preventDefault();
+    if (!cepValidado) return setErro("Confirme um CEP real antes de salvar.");
+    if (!semNumero && !rascunho.number.trim()) return setErro("Informe o número ou marque \"Sem número\".");
     setSalvando(true);
-    const { error } = await salvar(rascunho);
+    const { error } = await salvar({ ...rascunho, number: semNumero ? "S/N" : rascunho.number });
     setSalvando(false);
     if (error) return setErro(error);
     setEditando(false);
@@ -113,29 +135,48 @@ function EnderecoCartao() {
           { key: "neighborhood", label: "Bairro", span: "sm:col-span-3" },
           { key: "city", label: "Cidade", span: "sm:col-span-3" },
           { key: "state", label: "UF", span: "sm:col-span-2", maxLength: 2 },
-        ].map(({ key, label, span, inputMode, maxLength }) => (
-          <label key={key} className={cn("block", span)}>
-            <span className="text-xs uppercase tracking-[0.14em] text-muted-foreground">{label}</span>
-            <input
-              required
-              value={rascunho[key as keyof Address] ?? ""}
-              onChange={(e) => {
-                const valor = formatarCampo(key, e.target.value);
-                setRascunho({ ...rascunho, [key]: valor });
-                if (key === "cep") void buscarCep(valor);
-              }}
-              inputMode={inputMode}
-              maxLength={maxLength}
-              className="mt-1.5 w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm outline-none focus:border-primary/60"
-            />
-            {key === "cep" && buscandoCep ? (
-              <span className="mt-1 block text-[11px] text-muted-foreground">Buscando CEP…</span>
-            ) : null}
-            {key === "cep" && cepInvalido ? (
-              <span className="mt-1 block text-[11px] text-destructive">CEP não encontrado.</span>
-            ) : null}
-          </label>
-        ))}
+        ].map(({ key, label, span, inputMode, maxLength }) => {
+          const travado = camposTravados.has(key);
+          const desabilitado = key === "number" && semNumero;
+          return (
+            <label key={key} className={cn("block", span)}>
+              <span className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
+                {label}
+                {travado ? " · confirmado pelo CEP" : ""}
+              </span>
+              <input
+                required={key !== "number" || !semNumero}
+                disabled={travado || desabilitado}
+                value={desabilitado ? "S/N" : (rascunho[key as keyof Address] ?? "")}
+                onChange={(e) => {
+                  const valor = formatarCampo(key, e.target.value);
+                  setRascunho({ ...rascunho, [key]: valor });
+                  if (key === "cep") void buscarCep(valor);
+                }}
+                inputMode={inputMode}
+                maxLength={maxLength}
+                className="mt-1.5 w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm outline-none focus:border-primary/60 disabled:cursor-not-allowed disabled:opacity-60"
+              />
+              {key === "cep" && buscandoCep ? (
+                <span className="mt-1 block text-[11px] text-muted-foreground">Confirmando CEP…</span>
+              ) : null}
+              {key === "cep" && cepValidado ? (
+                <span className="mt-1 block text-[11px] text-primary">✓ CEP confirmado</span>
+              ) : null}
+              {key === "number" ? (
+                <label className="mt-1.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    checked={semNumero}
+                    onChange={(e) => setSemNumero(e.target.checked)}
+                    className="size-3.5 accent-primary"
+                  />
+                  Sem número
+                </label>
+              ) : null}
+            </label>
+          );
+        })}
 
         {erro ? (
           <p className="sm:col-span-6 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-2.5 text-xs text-destructive">
@@ -146,7 +187,7 @@ function EnderecoCartao() {
         <div className="flex gap-2 sm:col-span-6">
           <button
             type="submit"
-            disabled={salvando}
+            disabled={salvando || !cepValidado}
             className="rounded-full bg-primary px-5 py-2 text-xs font-semibold text-primary-foreground transition-all duration-300 hover:brightness-110 disabled:opacity-60"
           >
             {salvando ? "Salvando…" : "Salvar endereço"}

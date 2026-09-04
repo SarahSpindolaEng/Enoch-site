@@ -44,4 +44,8 @@ export type DbProduct = {
   is_active: boolean;
   image_url: string | null;
   installments: number;
+  weight_kg: number;
+  width_cm: number;
+  height_cm: number;
+  length_cm: number;
 };

@@ -292,6 +292,10 @@ type Rascunho = {
   image_url: string | null;
   specs: Especificacao[];
   colors: Cor[];
+  weight_kg: number;
+  width_cm: number;
+  height_cm: number;
+  length_cm: number;
 };
 
 function paraRascunho(p: DbProduct): Rascunho {
@@ -310,6 +314,10 @@ function paraRascunho(p: DbProduct): Rascunho {
     image_url: p.image_url,
     specs: p.specs ?? [],
     colors: p.colors ?? [],
+    weight_kg: p.weight_kg,
+    width_cm: p.width_cm,
+    height_cm: p.height_cm,
+    length_cm: p.length_cm,
   };
 }
 
@@ -326,6 +334,10 @@ const rascunhoVazio: Rascunho = {
   installments: 12,
   is_active: true,
   image_url: null,
+  weight_kg: 0.5,
+  width_cm: 20,
+  height_cm: 15,
+  length_cm: 15,
   specs: [],
   colors: [],
 };
@@ -816,6 +828,36 @@ function ProdutoLinhaEdicao({
                 <Plus className="size-3.5" />
                 Adicionar cor
               </button>
+            </div>
+          </div>
+
+          <div className="sm:col-span-2">
+            <span className="text-xs uppercase tracking-[0.12em] text-muted-foreground">
+              Peso e dimensões (pro cálculo de frete)
+            </span>
+            <div className="mt-1.5 grid grid-cols-4 gap-2">
+              {(
+                [
+                  { key: "weight_kg", label: "Peso (kg)" },
+                  { key: "length_cm", label: "Compr. (cm)" },
+                  { key: "width_cm", label: "Larg. (cm)" },
+                  { key: "height_cm", label: "Alt. (cm)" },
+                ] as const
+              ).map(({ key, label }) => (
+                <label key={key} className="block">
+                  <span className="text-[10px] text-muted-foreground">{label}</span>
+                  <input
+                    type="number"
+                    min={0.01}
+                    step={key === "weight_kg" ? 0.1 : 1}
+                    value={rascunho[key]}
+                    onChange={(e) =>
+                      setRascunho({ ...rascunho, [key]: Math.max(0.01, Number(e.target.value) || 0.01) })
+                    }
+                    className="mt-0.5 w-full rounded-lg border border-input bg-surface px-2 py-1.5 text-sm outline-none"
+                  />
+                </label>
+              ))}
             </div>
           </div>
 
