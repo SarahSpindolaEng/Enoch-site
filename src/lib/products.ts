@@ -75,7 +75,9 @@ function carregar() {
   carregando = true;
   void supabase
     .from("products")
-    .select("*")
+    .select(
+      "id, slug, name, brand, tagline, description, price, old_price, badge, category, specs, colors, stock, is_active, image_url, installments",
+    )
     .eq("is_active", true)
     .order("created_at", { ascending: false })
     .then(({ data }) => {

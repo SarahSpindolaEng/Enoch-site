@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import {
   Check,
+  History,
   ImagePlus,
   LayoutGrid,
   LogOut,
@@ -194,6 +195,84 @@ function PedidosTab() {
   );
 }
 
+type AuditLog = {
+  id: string;
+  actor_id: string | null;
+  action: "insert" | "update" | "delete";
+  table_name: string;
+  record_id: string | null;
+  new_data: { name?: string; status?: string } | null;
+  old_data: { name?: string; status?: string } | null;
+  created_at: string;
+};
+
+const acaoLabel: Record<string, string> = { insert: "criou", update: "editou", delete: "excluiu" };
+const tabelaLabel: Record<string, string> = { products: "produto", orders: "pedido" };
+
+function AtividadeTab() {
+  const [logs, setLogs] = useState<AuditLog[] | null>(null);
+  const [profiles, setProfiles] = useState<Map<string, Profile>>(new Map());
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      const [{ data: logRows }, { data: profileRows }] = await Promise.all([
+        supabase.from("admin_audit_log").select("*").order("created_at", { ascending: false }).limit(100),
+        supabase.from("profiles").select("id, name, email"),
+      ]);
+      if (!active) return;
+      setLogs((logRows as AuditLog[] | null) ?? []);
+      setProfiles(new Map(((profileRows as Profile[] | null) ?? []).map((p) => [p.id, p])));
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  if (logs === null) return <p className="text-sm text-muted-foreground">Carregando…</p>;
+  if (logs.length === 0)
+    return (
+      <p className="rounded-2xl border border-border bg-surface p-5 text-sm text-muted-foreground">
+        Nenhuma atividade registrada ainda.
+      </p>
+    );
+
+  return (
+    <div className="overflow-hidden rounded-2xl border border-border">
+      <table className="w-full text-left text-sm">
+        <thead>
+          <tr className="border-b border-border bg-surface text-xs uppercase tracking-[0.12em] text-muted-foreground">
+            <th className="px-5 py-3 font-medium">Quem</th>
+            <th className="px-5 py-3 font-medium">O que</th>
+            <th className="px-5 py-3 font-medium">Detalhe</th>
+            <th className="px-5 py-3 font-medium">Quando</th>
+          </tr>
+        </thead>
+        <tbody>
+          {logs.map((log) => {
+            const autor = log.actor_id ? profiles.get(log.actor_id) : null;
+            const dados = log.new_data ?? log.old_data;
+            return (
+              <tr key={log.id} className="border-b border-border last:border-0">
+                <td className="px-5 py-3.5 text-muted-foreground">{autor?.name ?? autor?.email ?? "—"}</td>
+                <td className="px-5 py-3.5">
+                  {acaoLabel[log.action] ?? log.action} {tabelaLabel[log.table_name] ?? log.table_name}
+                </td>
+                <td className="px-5 py-3.5 text-muted-foreground">
+                  {dados?.name ?? (dados?.status ? `status: ${statusLabel[dados.status] ?? dados.status}` : "—")}
+                </td>
+                <td className="px-5 py-3.5 text-muted-foreground">
+                  {new Date(log.created_at).toLocaleString("pt-BR")}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 type Especificacao = { label: string; value: string };
 
 type Cor = { name: string; value: string };
@@ -263,7 +342,9 @@ function ProdutosTab() {
     let active = true;
     supabase
       .from("products")
-      .select("*")
+      .select(
+        "id, slug, name, brand, tagline, description, price, old_price, badge, category, specs, colors, stock, is_active, image_url, installments",
+      )
       .order("created_at", { ascending: false })
       .then(({ data }) => {
         if (active) setProdutos((data as DbProduct[] | null) ?? []);
@@ -786,7 +867,7 @@ function ProdutoLinhaEdicao({
 
 export function AdminDashboard() {
   const { isAdmin, precisaAtivar2FA, loading, logout, recarregar } = useAdminAuth();
-  const [aba, setAba] = useState<"pedidos" | "produtos">("pedidos");
+  const [aba, setAba] = useState<"pedidos" | "produtos" | "atividade">("pedidos");
 
   if (loading) {
     return <LoadingScreen />;
@@ -885,9 +966,24 @@ export function AdminDashboard() {
             <LayoutGrid className="size-4" />
             Produtos
           </button>
+          <button
+            type="button"
+            onClick={() => setAba("atividade")}
+            className={cn(
+              "flex items-center gap-2 border-b-2 px-1 pb-3 text-sm font-medium transition-colors",
+              aba === "atividade"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground",
+            )}
+          >
+            <History className="size-4" />
+            Atividade
+          </button>
         </div>
 
-        <div className="mt-6">{aba === "pedidos" ? <PedidosTab /> : <ProdutosTab />}</div>
+        <div className="mt-6">
+          {aba === "pedidos" ? <PedidosTab /> : aba === "produtos" ? <ProdutosTab /> : <AtividadeTab />}
+        </div>
       </main>
     </div>
   );
