@@ -1,6 +1,7 @@
 import { Route, Routes, useLocation } from "react-router-dom";
 import { Suspense, lazy, useEffect } from "react";
 import { Layout } from "@/components/site/Layout";
+import { LoadingScreen } from "@/components/site/LoadingScreen";
 import { CartProvider } from "@/lib/cart";
 import { AuthProvider } from "@/lib/auth";
 import { AdminAuthProvider } from "@/lib/adminAuth";
@@ -42,7 +43,7 @@ export default function App() {
             <Route
               path="admin/login"
               element={
-                <Suspense fallback={null}>
+                <Suspense fallback={<LoadingScreen />}>
                   <AdminLogin />
                 </Suspense>
               }
@@ -50,7 +51,7 @@ export default function App() {
             <Route
               path="admin"
               element={
-                <Suspense fallback={null}>
+                <Suspense fallback={<LoadingScreen />}>
                   <AdminDashboard />
                 </Suspense>
               }

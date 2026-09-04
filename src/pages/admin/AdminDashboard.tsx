@@ -14,6 +14,7 @@ import {
   X,
 } from "lucide-react";
 import { EnochMark } from "@/components/site/EnochLogo";
+import { LoadingScreen } from "@/components/site/LoadingScreen";
 import { DoisFatores } from "@/components/site/ContaSeguranca";
 import { useAdminAuth } from "@/lib/adminAuth";
 import { supabase, type DbProduct } from "@/lib/supabaseClient";
@@ -1067,11 +1068,7 @@ export function AdminDashboard() {
   const [aba, setAba] = useState<"pedidos" | "produtos" | "mensagens">("pedidos");
 
   if (loading) {
-    return (
-      <div className="grid min-h-screen place-items-center bg-background text-sm text-muted-foreground">
-        Verificando acesso…
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   if (precisaAtivar2FA) {
