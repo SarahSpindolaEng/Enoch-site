@@ -249,7 +249,8 @@ type Pedido = {
 
 const statusLabel: Record<string, string> = {
   pendente: "Aguardando pagamento",
-  preparando: "Preparando pedido",
+  preparando: "Pagamento aprovado",
+  aceito: "Preparando pedido",
   enviado: "Pedido enviado",
   em_transito: "Em trânsito",
   entregue: "Entregue",
@@ -259,6 +260,7 @@ const statusLabel: Record<string, string> = {
 const statusEstilo: Record<string, string> = {
   pendente: "border-amber-400/30 bg-amber-400/10 text-amber-300",
   preparando: "border-primary/40 bg-primary/10 text-primary",
+  aceito: "border-primary/40 bg-primary/10 text-primary",
   enviado: "border-blue-400/30 bg-blue-400/10 text-blue-300",
   em_transito: "border-blue-400/30 bg-blue-400/10 text-blue-300",
   entregue: "border-emerald-400/30 bg-emerald-400/10 text-emerald-300",
@@ -268,7 +270,7 @@ const statusEstilo: Record<string, string> = {
 // Ordem das etapas visíveis na timeline — "pendente" fica fora porque só
 // existe enquanto o Pix não caiu; a partir de "preparando" o pedido já
 // está confirmado e segue essa esteira até "entregue".
-const etapasRastreio = ["preparando", "enviado", "em_transito", "entregue"] as const;
+const etapasRastreio = ["preparando", "aceito", "enviado", "em_transito", "entregue"] as const;
 
 function TimelinePedido({ pedido }: { pedido: Pedido }) {
   if (pedido.status === "cancelado") {
@@ -494,6 +496,72 @@ function PagarAgora({ pedido }: { pedido: Pedido }) {
   );
 }
 
+function SolicitarReembolso({ pedido }: { pedido: Pedido }) {
+  const [aberto, setAberto] = useState(false);
+  const [motivo, setMotivo] = useState("");
+  const [enviando, setEnviando] = useState(false);
+  const [resultado, setResultado] = useState<string | null>(null);
+
+  const enviar = async (e: FormEvent) => {
+    e.preventDefault();
+    setEnviando(true);
+    const { error } = await supabase.rpc("request_refund", { p_order_id: pedido.id, p_motivo: motivo });
+    setEnviando(false);
+    if (error) {
+      setResultado(error.message);
+      return;
+    }
+    setResultado("Solicitação enviada! A gente analisa e retorna em breve.");
+    setAberto(false);
+  };
+
+  if (resultado && !aberto) {
+    return <p className="mt-4 text-xs text-muted-foreground">{resultado}</p>;
+  }
+
+  if (!aberto) {
+    return (
+      <button
+        type="button"
+        onClick={() => setAberto(true)}
+        className="mt-4 w-full rounded-full border border-border px-6 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+      >
+        Solicitar reembolso
+      </button>
+    );
+  }
+
+  return (
+    <form onSubmit={enviar} className="mt-4 grid gap-2">
+      <textarea
+        required
+        value={motivo}
+        onChange={(e) => setMotivo(e.target.value)}
+        placeholder="Por que você quer cancelar/reembolsar esse pedido?"
+        rows={3}
+        className="w-full resize-none rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary/60"
+      />
+      <div className="flex gap-2">
+        <button
+          type="submit"
+          disabled={enviando}
+          className="flex-1 rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground transition-all hover:brightness-110 disabled:opacity-60"
+        >
+          {enviando ? "Enviando…" : "Confirmar solicitação"}
+        </button>
+        <button
+          type="button"
+          onClick={() => setAberto(false)}
+          className="rounded-full border border-border px-4 py-2.5 text-sm text-muted-foreground"
+        >
+          Cancelar
+        </button>
+      </div>
+      {resultado ? <p className="text-xs text-destructive">{resultado}</p> : null}
+    </form>
+  );
+}
+
 function PedidoCard({ pedido }: { pedido: Pedido }) {
   const [aberto, setAberto] = useState(false);
   const resumoItens = pedido.order_items.map((i) => i.product_name).join(", ");
@@ -545,6 +613,7 @@ function PedidoCard({ pedido }: { pedido: Pedido }) {
 
           <TimelinePedido pedido={pedido} />
           {pedido.status === "pendente" ? <PagarAgora pedido={pedido} /> : null}
+          {pedido.status === "preparando" ? <SolicitarReembolso pedido={pedido} /> : null}
           <SuportePedido pedido={pedido} />
         </div>
       ) : null}

@@ -8,6 +8,7 @@ import {
   LogOut,
   Pencil,
   Plus,
+  RotateCcw,
   ShieldAlert,
   ShoppingBag,
   Trash2,
@@ -53,11 +54,14 @@ type Order = {
 
 // "pendente" não entra aqui: é só um estado transitório enquanto o
 // pagamento não cai (ou expira sozinho em 30min) — o admin nunca vê nem
-// edita pedido nesse status, só a partir de "preparando" (pago).
+// edita pedido nesse status, só a partir de "preparando" (pago). "aceito" só
+// muda pelo botão "Aceitar pedido" (não fica na lista manual do dropdown)
+// porque marca o momento em que o admin confirma que vai preparar/enviar.
 const statusOptions = ["preparando", "enviado", "em_transito", "entregue", "cancelado"] as const;
 const statusLabel: Record<string, string> = {
   pendente: "Pendente",
-  preparando: "Preparando pedido",
+  preparando: "Pagamento aprovado",
+  aceito: "Pedido aceito",
   enviado: "Pedido enviado",
   em_transito: "Em trânsito",
   entregue: "Entregue",
@@ -66,6 +70,7 @@ const statusLabel: Record<string, string> = {
 const statusEstilo: Record<string, string> = {
   pendente: "border-amber-400/30 bg-amber-400/10 text-amber-300",
   preparando: "border-primary/40 bg-primary/10 text-primary",
+  aceito: "border-primary/40 bg-primary/10 text-primary",
   enviado: "border-blue-400/30 bg-blue-400/10 text-blue-300",
   em_transito: "border-blue-400/30 bg-blue-400/10 text-blue-300",
   entregue: "border-emerald-400/30 bg-emerald-400/10 text-emerald-300",
@@ -111,6 +116,19 @@ function PedidosTab() {
     void supabase.from("orders").update(patch).eq("id", id);
   };
 
+  const aceitarPedido = async (id: string) => {
+    const { error } = await supabase.rpc("admin_accept_order", { p_order_id: id });
+    if (error) return alert(error.message);
+    setOrders((prev) => prev?.map((o) => (o.id === id ? { ...o, status: "aceito" } : o)) ?? null);
+  };
+
+  const cancelarPedido = async (id: string) => {
+    if (!confirm("Cancelar esse pedido? Se já estiver pago, o valor é estornado automaticamente pro cliente.")) return;
+    const { data, error } = await supabase.functions.invoke("admin-cancel-order", { body: { order_id: id } });
+    if (error || data?.error) return alert(data?.error ?? "Não foi possível cancelar o pedido agora.");
+    setOrders((prev) => prev?.map((o) => (o.id === id ? { ...o, status: "cancelado" } : o)) ?? null);
+  };
+
   if (orders === null) return <p className="text-sm text-muted-foreground">Carregando…</p>;
   if (orders.length === 0)
     return (
@@ -131,6 +149,7 @@ function PedidosTab() {
             <th className="px-5 py-3 font-medium">Status</th>
             <th className="px-5 py-3 font-medium">Rastreio</th>
             <th className="px-5 py-3 font-medium">Data</th>
+            <th className="px-5 py-3 font-medium">Ações</th>
           </tr>
         </thead>
         <tbody>
@@ -186,11 +205,137 @@ function PedidosTab() {
                 <td className="px-5 py-3.5 text-muted-foreground">
                   {new Date(o.created_at).toLocaleDateString("pt-BR")}
                 </td>
+                <td className="px-5 py-3.5">
+                  <div className="flex flex-col gap-1.5">
+                    {o.status === "preparando" ? (
+                      <button
+                        type="button"
+                        onClick={() => aceitarPedido(o.id)}
+                        className="rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground transition-all hover:brightness-110"
+                      >
+                        Aceitar pedido
+                      </button>
+                    ) : null}
+                    {o.status === "preparando" || o.status === "aceito" ? (
+                      <button
+                        type="button"
+                        onClick={() => cancelarPedido(o.id)}
+                        className="rounded-full border border-destructive/40 px-3 py-1 text-xs font-semibold text-destructive transition-colors hover:bg-destructive/10"
+                      >
+                        Cancelar pedido
+                      </button>
+                    ) : null}
+                  </div>
+                </td>
               </tr>
             );
           })}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+type RefundRequest = {
+  id: string;
+  order_id: string;
+  user_id: string;
+  motivo: string;
+  status: string;
+  created_at: string;
+  orders: { total: number; status: string } | { total: number; status: string }[] | null;
+};
+
+function RefundsTab() {
+  const [pedidos, setPedidos] = useState<RefundRequest[] | null>(null);
+  const [profiles, setProfiles] = useState<Map<string, Profile>>(new Map());
+
+  const carregar = async () => {
+    const [{ data: refundRows }, { data: profileRows }] = await Promise.all([
+      supabase
+        .from("refund_requests")
+        .select("id, order_id, user_id, motivo, status, created_at, orders(total, status)")
+        .eq("status", "pendente")
+        .order("created_at", { ascending: false }),
+      supabase.from("profiles").select("id, name, email"),
+    ]);
+    setPedidos((refundRows as RefundRequest[] | null) ?? []);
+    setProfiles(new Map(((profileRows as Profile[] | null) ?? []).map((p) => [p.id, p])));
+  };
+
+  useEffect(() => {
+    void carregar();
+  }, []);
+
+  const primeiroPedido = (o: RefundRequest["orders"]) => (Array.isArray(o) ? o[0] ?? null : o);
+
+  const aprovar = async (r: RefundRequest) => {
+    if (!confirm("Aprovar reembolso? O valor pago é estornado de verdade pro cliente no Mercado Pago.")) return;
+    const { data, error } = await supabase.functions.invoke("admin-cancel-order", {
+      body: { order_id: r.order_id, refund_request_id: r.id },
+    });
+    if (error || data?.error) return alert(data?.error ?? "Não foi possível estornar agora.");
+    void carregar();
+  };
+
+  const rejeitar = async (r: RefundRequest) => {
+    const { error } = await supabase.rpc("admin_reject_refund", { p_refund_id: r.id });
+    if (error) return alert(error.message);
+    void carregar();
+  };
+
+  if (pedidos === null) return <p className="text-sm text-muted-foreground">Carregando…</p>;
+  if (pedidos.length === 0)
+    return (
+      <p className="rounded-2xl border border-border bg-surface p-5 text-sm text-muted-foreground">
+        Nenhuma solicitação de reembolso pendente.
+      </p>
+    );
+
+  return (
+    <div className="grid gap-3">
+      {pedidos.map((r) => {
+        const cliente = profiles.get(r.user_id);
+        const pedido = primeiroPedido(r.orders);
+        return (
+          <div key={r.id} className="rounded-2xl border border-border bg-surface p-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="font-medium">
+                  Pedido #{r.order_id.slice(0, 8)} — {cliente?.name ?? r.user_id.slice(0, 8)}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {new Date(r.created_at).toLocaleString("pt-BR")}
+                  {pedido ? ` · ${formatPrice(pedido.total)}` : ""}
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => aprovar(r)}
+                  className="rounded-full bg-primary px-4 py-1.5 text-xs font-semibold text-primary-foreground transition-all hover:brightness-110"
+                >
+                  Aprovar (estornar)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => rejeitar(r)}
+                  className="rounded-full border border-border px-4 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  Rejeitar
+                </button>
+              </div>
+            </div>
+            <p className="mt-3 text-sm text-muted-foreground">{r.motivo}</p>
+            {pedido && pedido.status !== "preparando" ? (
+              <p className="mt-2 text-xs text-amber-300">
+                Atenção: esse pedido já mudou de status ({statusLabel[pedido.status] ?? pedido.status}) desde a
+                solicitação.
+              </p>
+            ) : null}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -909,7 +1054,7 @@ function ProdutoLinhaEdicao({
 
 export function AdminDashboard() {
   const { isAdmin, precisaAtivar2FA, loading, logout, recarregar } = useAdminAuth();
-  const [aba, setAba] = useState<"pedidos" | "produtos" | "atividade">("pedidos");
+  const [aba, setAba] = useState<"pedidos" | "produtos" | "reembolsos" | "atividade">("pedidos");
 
   if (loading) {
     return <LoadingScreen />;
@@ -1010,6 +1155,19 @@ export function AdminDashboard() {
           </button>
           <button
             type="button"
+            onClick={() => setAba("reembolsos")}
+            className={cn(
+              "flex items-center gap-2 border-b-2 px-1 pb-3 text-sm font-medium transition-colors",
+              aba === "reembolsos"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground",
+            )}
+          >
+            <RotateCcw className="size-4" />
+            Reembolsos
+          </button>
+          <button
+            type="button"
             onClick={() => setAba("atividade")}
             className={cn(
               "flex items-center gap-2 border-b-2 px-1 pb-3 text-sm font-medium transition-colors",
@@ -1024,7 +1182,15 @@ export function AdminDashboard() {
         </div>
 
         <div className="mt-6">
-          {aba === "pedidos" ? <PedidosTab /> : aba === "produtos" ? <ProdutosTab /> : <AtividadeTab />}
+          {aba === "pedidos" ? (
+            <PedidosTab />
+          ) : aba === "produtos" ? (
+            <ProdutosTab />
+          ) : aba === "reembolsos" ? (
+            <RefundsTab />
+          ) : (
+            <AtividadeTab />
+          )}
         </div>
       </main>
     </div>
