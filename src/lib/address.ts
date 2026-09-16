@@ -30,6 +30,19 @@ export function cpfValido(valor: string): boolean {
   return calc(9) === parseInt(digitos[9], 10) && calc(10) === parseInt(digitos[10], 10);
 }
 
+export function formatarCpf(valor: string): string {
+  const d = valor.replace(/\D/g, "").slice(0, 11);
+  return d
+    .replace(/(\d{3})(\d)/, "$1.$2")
+    .replace(/(\d{3})(\d)/, "$1.$2")
+    .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+}
+
+export function formatarTelefone(valor: string): string {
+  const d = valor.replace(/\D/g, "").slice(0, 11);
+  return d.replace(/(\d{2})(\d)/, "($1) $2").replace(/(\d{5})(\d{4})$/, "$1-$2");
+}
+
 // Um endereço por cliente — cadastrado no perfil, reaproveitado
 // automaticamente no carrinho na hora de fechar a compra.
 export function useAddress() {

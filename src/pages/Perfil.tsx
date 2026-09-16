@@ -20,7 +20,7 @@ import { ContaSeguranca } from "@/components/site/ContaSeguranca";
 import { useAuth } from "@/lib/auth";
 import { useAdminAuth } from "@/lib/adminAuth";
 import { useCart } from "@/lib/cart";
-import { useAddress, cpfValido, type Address } from "@/lib/address";
+import { useAddress, type Address } from "@/lib/address";
 import { supabase } from "@/lib/supabaseClient";
 import { formatPrice } from "@/lib/products";
 import { cn } from "@/lib/utils";
@@ -32,17 +32,6 @@ function formatarCampo(key: string, valor: string): string {
   }
   if (key === "number") return valor.replace(/\D/g, "");
   if (key === "state") return valor.replace(/[^a-zA-Z]/g, "").toUpperCase().slice(0, 2);
-  if (key === "cpf") {
-    const d = valor.replace(/\D/g, "").slice(0, 11);
-    return d
-      .replace(/(\d{3})(\d)/, "$1.$2")
-      .replace(/(\d{3})(\d)/, "$1.$2")
-      .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
-  }
-  if (key === "phone") {
-    const d = valor.replace(/\D/g, "").slice(0, 11);
-    return d.replace(/(\d{2})(\d)/, "($1) $2").replace(/(\d{5})(\d{4})$/, "$1-$2");
-  }
   return valor;
 }
 
@@ -128,9 +117,6 @@ function EnderecoCartao() {
     e.preventDefault();
     if (!cepValidado) return setErro("Confirme um CEP real antes de salvar.");
     if (!semNumero && !rascunho.number.trim()) return setErro("Informe o número ou marque \"Sem número\".");
-    if (!rascunho.name.trim()) return setErro("Informe o nome completo do destinatário.");
-    if (!cpfValido(rascunho.cpf)) return setErro("CPF inválido. Confira os números.");
-    if (rascunho.phone.replace(/\D/g, "").length < 10) return setErro("Informe um telefone válido com DDD.");
     setSalvando(true);
     const { error } = await salvar({ ...rascunho, number: semNumero ? "S/N" : rascunho.number });
     setSalvando(false);
@@ -145,9 +131,6 @@ function EnderecoCartao() {
         className="mt-4 grid gap-3 rounded-2xl border border-border bg-surface p-5 sm:grid-cols-6"
       >
         {[
-          { key: "name", label: "Nome completo (destinatário)", span: "sm:col-span-6" },
-          { key: "cpf", label: "CPF", span: "sm:col-span-3", inputMode: "numeric" as const, maxLength: 14 },
-          { key: "phone", label: "Telefone (com DDD)", span: "sm:col-span-3", inputMode: "numeric" as const, maxLength: 15 },
           { key: "cep", label: "CEP", span: "sm:col-span-2", inputMode: "numeric" as const, maxLength: 9 },
           { key: "street", label: "Rua", span: "sm:col-span-4" },
           { key: "number", label: "Número", span: "sm:col-span-2", inputMode: "numeric" as const },

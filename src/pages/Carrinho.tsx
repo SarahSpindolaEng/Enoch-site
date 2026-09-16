@@ -6,7 +6,7 @@ import { ProductArt } from "@/components/site/ProductArt";
 import { formatPrice, useProducts } from "@/lib/products";
 import { useCart } from "@/lib/cart";
 import { useAuth } from "@/lib/auth";
-import { useAddress } from "@/lib/address";
+import { useAddress, cpfValido, formatarCpf, formatarTelefone } from "@/lib/address";
 import { supabase } from "@/lib/supabaseClient";
 
 type OpcaoFrete = { id: number; empresa: string; servico: string; preco: number; prazoDias: number };
@@ -14,12 +14,26 @@ type OpcaoFrete = { id: number; empresa: string; servico: string; preco: number;
 export function Carrinho() {
   const { lines, setQty, removeFromCart, subtotal, checkout } = useCart();
   const { user } = useAuth();
-  const { address } = useAddress();
+  const { address, salvar } = useAddress();
   const produtos = useProducts();
   const navigate = useNavigate();
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [pedidoId, setPedidoId] = useState<string | null>(null);
+
+  // Dados do destinatário (pro Mercado Pago e pra etiqueta do Melhor
+  // Envio) — pedidos aqui no carrinho, na hora de fechar a compra, não no
+  // perfil, pra não travar quem só quer ver o site.
+  const [nome, setNome] = useState("");
+  const [cpf, setCpf] = useState("");
+  const [telefone, setTelefone] = useState("");
+
+  useEffect(() => {
+    if (!address) return;
+    setNome((prev) => prev || address.name || "");
+    setCpf((prev) => prev || address.cpf || "");
+    setTelefone((prev) => prev || address.phone || "");
+  }, [address]);
 
   const [opcoesFrete, setOpcoesFrete] = useState<OpcaoFrete[] | null>(null);
   const [carregandoFrete, setCarregandoFrete] = useState(false);
@@ -57,16 +71,25 @@ export function Carrinho() {
   const opcaoAtual = opcoesFrete?.find((o) => o.id === freteEscolhido) ?? null;
   const frete = opcaoAtual?.preco ?? 0;
   const total = subtotal + frete;
-  const enderecoCompleto = Boolean(address?.cpf && address?.phone && address?.name);
 
   const handleCheckout = async () => {
     if (!user) {
       navigate("/login");
       return;
     }
-    if (!opcaoAtual || !enderecoCompleto) return;
+    if (!address || !opcaoAtual) return;
     setErro(null);
+    if (!nome.trim()) return setErro("Informe seu nome completo.");
+    if (!cpfValido(cpf)) return setErro("CPF inválido. Confira os números.");
+    if (telefone.replace(/\D/g, "").length < 10) return setErro("Informe um telefone válido com DDD.");
+
     setCarregando(true);
+    const { error: dadosError } = await salvar({ ...address, name: nome, cpf, phone: telefone });
+    if (dadosError) {
+      setCarregando(false);
+      return setErro(dadosError);
+    }
+
     const { orderId, error } = await checkout();
     if (error) {
       setCarregando(false);
@@ -280,6 +303,36 @@ export function Carrinho() {
                 </div>
               ) : null}
 
+              {user && address ? (
+                <div className="mt-4 grid gap-2.5">
+                  <p className="text-xs font-medium text-muted-foreground">Dados do destinatário</p>
+                  <input
+                    value={nome}
+                    onChange={(e) => setNome(e.target.value)}
+                    placeholder="Nome completo"
+                    className="w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm outline-none focus:border-primary/60"
+                  />
+                  <div className="flex gap-2">
+                    <input
+                      value={cpf}
+                      onChange={(e) => setCpf(formatarCpf(e.target.value))}
+                      placeholder="CPF"
+                      inputMode="numeric"
+                      maxLength={14}
+                      className="w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm outline-none focus:border-primary/60"
+                    />
+                    <input
+                      value={telefone}
+                      onChange={(e) => setTelefone(formatarTelefone(e.target.value))}
+                      placeholder="Telefone (DDD)"
+                      inputMode="numeric"
+                      maxLength={15}
+                      className="w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm outline-none focus:border-primary/60"
+                    />
+                  </div>
+                </div>
+              ) : null}
+
               {erro ? (
                 <p className="mt-4 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
                   {erro}
@@ -289,7 +342,7 @@ export function Carrinho() {
               <button
                 type="button"
                 onClick={handleCheckout}
-                disabled={carregando || (user ? !address || !enderecoCompleto || !opcaoAtual : false)}
+                disabled={carregando || (user ? !address || !opcaoAtual : false)}
                 className="mt-6 w-full rounded-full bg-primary px-7 py-3.5 text-sm font-semibold text-primary-foreground transition-all duration-300 hover:brightness-110 hover:shadow-[0_0_40px_-10px_var(--primary)] active:scale-[0.99] disabled:opacity-60"
               >
                 {carregando ? "Processando…" : "Finalizar compra"}
@@ -299,11 +352,9 @@ export function Carrinho() {
                   ? "Você precisa entrar na sua conta para finalizar a compra."
                   : !address
                     ? "Cadastre um endereço pra calcular o frete e finalizar a compra."
-                    : !enderecoCompleto
-                      ? "Complete nome, CPF e telefone no seu endereço (perfil) pra continuar."
-                      : !opcaoAtual
-                        ? "Escolha uma opção de envio pra continuar."
-                        : "Ao continuar, você será levado pro pagamento no Mercado Pago."}
+                    : !opcaoAtual
+                      ? "Escolha uma opção de envio pra continuar."
+                      : "Ao continuar, você será levado pro pagamento no Mercado Pago."}
               </p>
             </div>
           </Reveal>
