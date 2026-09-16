@@ -63,12 +63,25 @@ export function Carrinho() {
       navigate("/login");
       return;
     }
+    if (!opcaoAtual) return;
     setErro(null);
     setCarregando(true);
     const { orderId, error } = await checkout();
+    if (error) {
+      setCarregando(false);
+      return setErro(error);
+    }
+
+    const { data, error: pagamentoError } = await supabase.functions.invoke("create-payment-preference", {
+      body: { order_id: orderId, shipping_service_id: opcaoAtual.id },
+    });
     setCarregando(false);
-    if (error) return setErro(error);
-    setPedidoId(orderId);
+    if (pagamentoError || !data?.init_point) {
+      setErro("Pedido criado, mas não foi possível iniciar o pagamento agora. Veja em 'Meus pedidos'.");
+      setPedidoId(orderId);
+      return;
+    }
+    window.location.href = data.init_point;
   };
 
   if (pedidoId) {
@@ -80,8 +93,9 @@ export function Carrinho() {
         <h1 className="text-2xl font-bold">Pedido criado!</h1>
         <p className="max-w-sm text-sm text-muted-foreground">
           Seu pedido <span className="font-medium text-foreground">#{pedidoId.slice(0, 8)}</span>{" "}
-          está com status <span className="text-primary">pendente</span>. O pagamento ainda não
-          está conectado — em breve avisamos como concluir.
+          está com status <span className="text-primary">pendente</span>. Não foi possível abrir o
+          pagamento agora — tente novamente pelos seus pedidos, ou aguarde: ele expira em 30 minutos
+          se não for pago.
         </p>
         <Link
           to="/perfil"

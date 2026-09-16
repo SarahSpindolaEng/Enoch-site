@@ -285,7 +285,7 @@ function TimelinePedido({ pedido }: { pedido: Pedido }) {
       <div className="mt-4 flex items-center gap-2.5 rounded-2xl border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm text-amber-300">
         <Package className="size-4 shrink-0" />
         <span>
-          Aguardando confirmação do pagamento via Pix.
+          Aguardando confirmação do pagamento.
           {pedido.expires_at ? (
             <>
               {" "}
@@ -461,6 +461,39 @@ function SuportePedido({ pedido }: { pedido: Pedido }) {
   );
 }
 
+function PagarAgora({ pedido }: { pedido: Pedido }) {
+  const [carregando, setCarregando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+
+  const pagar = async () => {
+    setCarregando(true);
+    setErro(null);
+    const { data, error } = await supabase.functions.invoke("create-payment-preference", {
+      body: { order_id: pedido.id },
+    });
+    setCarregando(false);
+    if (error || !data?.init_point) {
+      setErro("Não foi possível abrir o pagamento agora. Tente de novo em instantes.");
+      return;
+    }
+    window.location.href = data.init_point;
+  };
+
+  return (
+    <div className="mt-4">
+      <button
+        type="button"
+        onClick={pagar}
+        disabled={carregando}
+        className="w-full rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground transition-all duration-300 hover:brightness-110 disabled:opacity-60"
+      >
+        {carregando ? "Abrindo pagamento…" : "Pagar agora"}
+      </button>
+      {erro ? <p className="mt-2 text-center text-xs text-destructive">{erro}</p> : null}
+    </div>
+  );
+}
+
 function PedidoCard({ pedido }: { pedido: Pedido }) {
   const [aberto, setAberto] = useState(false);
   const resumoItens = pedido.order_items.map((i) => i.product_name).join(", ");
@@ -511,6 +544,7 @@ function PedidoCard({ pedido }: { pedido: Pedido }) {
           </div>
 
           <TimelinePedido pedido={pedido} />
+          {pedido.status === "pendente" ? <PagarAgora pedido={pedido} /> : null}
           <SuportePedido pedido={pedido} />
         </div>
       ) : null}

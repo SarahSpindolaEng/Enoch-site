@@ -51,9 +51,9 @@ type Order = {
   order_items: OrderItem[];
 };
 
-// "pendente" não entra aqui: é só um estado transitório enquanto o Pix não
-// cai (ou expira sozinho em 30min) — o admin nunca vê nem edita pedido
-// nesse status, só a partir de "preparando" (pago).
+// "pendente" não entra aqui: é só um estado transitório enquanto o
+// pagamento não cai (ou expira sozinho em 30min) — o admin nunca vê nem
+// edita pedido nesse status, só a partir de "preparando" (pago).
 const statusOptions = ["preparando", "enviado", "em_transito", "entregue", "cancelado"] as const;
 const statusLabel: Record<string, string> = {
   pendente: "Pendente",
@@ -86,8 +86,8 @@ function PedidosTab() {
           .select(
             "id, user_id, status, total, created_at, tracking_code, tracking_url, order_items(product_name, quantity, unit_price)",
           )
-          // Pendente = Pix ainda não caiu (ou já expirou e virou cancelado
-          // sozinho) — só entra na lista do admin depois de pago de verdade.
+          // Pendente = pagamento ainda não caiu (ou já expirou e virou
+          // cancelado sozinho) — só entra na lista do admin depois de pago.
           .neq("status", "pendente")
           .order("created_at", { ascending: false }),
         supabase.from("profiles").select("id, name, email"),
