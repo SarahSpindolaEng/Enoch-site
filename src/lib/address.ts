@@ -10,7 +10,25 @@ export type Address = {
   neighborhood: string;
   city: string;
   state: string;
+  name: string;
+  cpf: string;
+  phone: string;
 };
+
+// Algoritmo oficial de validação de CPF (dígitos verificadores) — precisa
+// disso porque o CPF vai direto pro Melhor Envio na etiqueta de envio, um
+// CPF com dígito errado derruba a emissão na hora.
+export function cpfValido(valor: string): boolean {
+  const digitos = valor.replace(/\D/g, "");
+  if (digitos.length !== 11 || /^(\d)\1{10}$/.test(digitos)) return false;
+  const calc = (tam: number) => {
+    let soma = 0;
+    for (let i = 0; i < tam; i++) soma += parseInt(digitos[i], 10) * (tam + 1 - i);
+    const resto = (soma * 10) % 11;
+    return resto === 10 || resto === 11 ? 0 : resto;
+  };
+  return calc(9) === parseInt(digitos[9], 10) && calc(10) === parseInt(digitos[10], 10);
+}
 
 // Um endereço por cliente — cadastrado no perfil, reaproveitado
 // automaticamente no carrinho na hora de fechar a compra.
@@ -26,7 +44,7 @@ export function useAddress() {
     let active = true;
     supabase
       .from("addresses")
-      .select("cep, street, number, complement, neighborhood, city, state")
+      .select("cep, street, number, complement, neighborhood, city, state, name, cpf, phone")
       .eq("user_id", user.id)
       .maybeSingle()
       .then(({ data }) => {

@@ -57,13 +57,14 @@ export function Carrinho() {
   const opcaoAtual = opcoesFrete?.find((o) => o.id === freteEscolhido) ?? null;
   const frete = opcaoAtual?.preco ?? 0;
   const total = subtotal + frete;
+  const enderecoCompleto = Boolean(address?.cpf && address?.phone && address?.name);
 
   const handleCheckout = async () => {
     if (!user) {
       navigate("/login");
       return;
     }
-    if (!opcaoAtual) return;
+    if (!opcaoAtual || !enderecoCompleto) return;
     setErro(null);
     setCarregando(true);
     const { orderId, error } = await checkout();
@@ -288,7 +289,7 @@ export function Carrinho() {
               <button
                 type="button"
                 onClick={handleCheckout}
-                disabled={carregando || (user ? !address || !opcaoAtual : false)}
+                disabled={carregando || (user ? !address || !enderecoCompleto || !opcaoAtual : false)}
                 className="mt-6 w-full rounded-full bg-primary px-7 py-3.5 text-sm font-semibold text-primary-foreground transition-all duration-300 hover:brightness-110 hover:shadow-[0_0_40px_-10px_var(--primary)] active:scale-[0.99] disabled:opacity-60"
               >
                 {carregando ? "Processando…" : "Finalizar compra"}
@@ -298,9 +299,11 @@ export function Carrinho() {
                   ? "Você precisa entrar na sua conta para finalizar a compra."
                   : !address
                     ? "Cadastre um endereço pra calcular o frete e finalizar a compra."
-                    : !opcaoAtual
-                      ? "Escolha uma opção de envio pra continuar."
-                      : "Pagamento ainda não conectado — o pedido fica registrado como pendente."}
+                    : !enderecoCompleto
+                      ? "Complete nome, CPF e telefone no seu endereço (perfil) pra continuar."
+                      : !opcaoAtual
+                        ? "Escolha uma opção de envio pra continuar."
+                        : "Ao continuar, você será levado pro pagamento no Mercado Pago."}
               </p>
             </div>
           </Reveal>
