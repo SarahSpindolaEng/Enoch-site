@@ -48,7 +48,7 @@ const columns = [
 
 const socials = [
   { Icon: Instagram, label: "Instagram", href: "https://instagram.com/Enoch.Tech_" },
-  { Icon: MessageCircle, label: "WhatsApp", href: "https://wa.me/5562982384648" },
+  { Icon: MessageCircle, label: "WhatsApp", href: "https://wa.me/5562993145116" },
 ];
 
 export function Footer() {
