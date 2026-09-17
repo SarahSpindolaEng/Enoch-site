@@ -33,14 +33,20 @@ function marcarTutorialVisto() {
 // Diagrama simples (caixa + seta) pra ilustrar onde cada coisa fica, sem
 // depender de tirar print da tela real (que quebraria a cada mudança de
 // layout). Não é pixel-perfect, é só uma referência visual.
-function Diagrama({ rotulo, cor = "primary" }: { rotulo: string; cor?: "primary" | "amber" | "red" }) {
-  const estilos = {
-    primary: "border-primary/50 bg-primary/10 text-primary",
-    amber: "border-amber-400/40 bg-amber-400/10 text-amber-300",
-    red: "border-destructive/40 bg-destructive/10 text-destructive",
-  }[cor];
+// Cores batem exatamente com o estilo real do botão no painel — "primary"
+// é o botão cheio (ação principal), "neutro" é o botão com borda (ação
+// secundária), "amber"/"red" são só pra destacar avisos, não botões.
+type CorChip = "primary" | "neutro" | "amber" | "red";
+const estilosChip: Record<CorChip, string> = {
+  primary: "border-primary/50 bg-primary text-primary-foreground",
+  neutro: "border-border bg-background text-muted-foreground",
+  amber: "border-amber-400/40 bg-amber-400/10 text-amber-300",
+  red: "border-destructive/40 bg-destructive/10 text-destructive",
+};
+
+function Diagrama({ chips }: { chips: { texto: string; cor: CorChip }[] }) {
   return (
-    <div className="flex items-center gap-3 rounded-2xl border border-dashed border-border bg-background p-5">
+    <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-dashed border-border bg-background p-5">
       <svg width="34" height="24" viewBox="0 0 34 24" className="shrink-0 text-muted-foreground">
         <path
           d="M2 20 Q 16 20 30 6"
@@ -56,7 +62,14 @@ function Diagrama({ rotulo, cor = "primary" }: { rotulo: string; cor?: "primary"
           </marker>
         </defs>
       </svg>
-      <span className={cn("rounded-full border px-4 py-2 text-xs font-semibold", estilos)}>{rotulo}</span>
+      {chips.map((chip) => (
+        <span
+          key={chip.texto}
+          className={cn("rounded-full border px-4 py-2 text-xs font-semibold", estilosChip[chip.cor])}
+        >
+          {chip.texto}
+        </span>
+      ))}
     </div>
   );
 }
@@ -65,8 +78,7 @@ type Passo = {
   Icon: typeof ShoppingBag;
   titulo: string;
   texto: string;
-  rotulo: string;
-  cor?: "primary" | "amber" | "red";
+  chips: { texto: string; cor: CorChip }[];
 };
 
 const passos: Passo[] = [
@@ -75,43 +87,50 @@ const passos: Passo[] = [
     titulo: "Aba Pedidos",
     texto:
       'Aqui aparecem os pedidos já pagos pelo cliente. Clique em "Aceitar pedido" pra confirmar que vai preparar e enviar — só depois disso ele entra na esteira de envio. "Cancelar pedido" cancela e, se já tiver sido pago, estorna o dinheiro pro cliente automaticamente no Mercado Pago.',
-    rotulo: "Aceitar pedido / Cancelar pedido",
+    chips: [
+      { texto: "Aceitar pedido", cor: "primary" },
+      { texto: "Cancelar pedido", cor: "neutro" },
+    ],
   },
   {
     Icon: LayoutGrid,
     titulo: "Aba Produtos",
     texto:
       'Cadastre e edite produtos: nome, preço, estoque, fotos (pode subir várias, além da capa), especificações e cores. O campo "Frete especial" é só pra itens grandes demais pra encomenda comum (scooter, triciclo) — nesses, o cliente é direcionado pro WhatsApp em vez de comprar direto.',
-    rotulo: "Adicionar produto",
+    chips: [{ texto: "Adicionar produto", cor: "primary" }],
   },
   {
     Icon: RotateCcw,
     titulo: "Aba Reembolsos",
     texto:
-      'Quando um cliente pede reembolso de um pedido ainda não aceito, a solicitação aparece aqui. "Aprovar" estorna o valor de verdade no Mercado Pago e cancela o pedido; "Rejeitar" só recusa o pedido, sem mexer no pagamento.',
-    rotulo: "Aprovar / Rejeitar",
+      'Quando um cliente pede reembolso de um pedido ainda não aceito, a solicitação aparece aqui. "Aprovar (estornar)" estorna o valor de verdade no Mercado Pago e cancela o pedido; "Rejeitar" só recusa a solicitação, sem mexer no pagamento.',
+    chips: [
+      { texto: "Aprovar (estornar)", cor: "primary" },
+      { texto: "Rejeitar", cor: "neutro" },
+    ],
   },
   {
     Icon: History,
     titulo: "Aba Atividade",
     texto: "Histórico de tudo que foi feito no painel — quem editou o quê e quando. Útil pra conferir depois.",
-    rotulo: "Registro de ações",
+    chips: [{ texto: "Quem · O quê · Quando", cor: "neutro" }],
   },
   {
     Icon: UserIcon,
     titulo: "O que o cliente vê e consegue fazer",
     texto:
-      'No perfil dele, o cliente vê os próprios pedidos, pode pagar um pedido pendente de novo ("Pagar agora"), pedir reembolso de um pedido recém-pago, e falar com o suporte pelo WhatsApp direto de um pedido específico. Ele NUNCA vê pedidos ou dados de outros clientes.',
-    rotulo: "Perfil do cliente",
-    cor: "amber",
+      'No perfil dele, o cliente vê os próprios pedidos, pode pagar um pedido pendente de novo ("Pagar agora"), pedir reembolso de um pedido recém-pago ("Solicitar reembolso"), e falar com o suporte pelo WhatsApp direto de um pedido específico. Ele NUNCA vê pedidos ou dados de outros clientes.',
+    chips: [
+      { texto: "Pagar agora", cor: "primary" },
+      { texto: "Solicitar reembolso", cor: "neutro" },
+    ],
   },
   {
     Icon: ShieldAlert,
     titulo: "Segurança da conta admin",
     texto:
       "O painel exige autenticação em duas etapas (2FA) ativa pra qualquer conta admin — sem isso, mesmo logado, as funções de admin ficam bloqueadas. Nunca compartilhe o código do 2FA com ninguém.",
-    rotulo: "2FA obrigatório",
-    cor: "red",
+    chips: [{ texto: "2FA obrigatório", cor: "red" }],
   },
 ];
 
@@ -151,7 +170,7 @@ export function AdminTutorial({ onFechar }: { onFechar: () => void }) {
         </div>
 
         <div className="mt-5">
-          <Diagrama rotulo={atual.rotulo} cor={atual.cor} />
+          <Diagrama chips={atual.chips} />
         </div>
 
         <p className="mt-4 text-sm leading-relaxed text-muted-foreground">{atual.texto}</p>
