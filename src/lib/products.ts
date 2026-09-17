@@ -20,6 +20,7 @@ export type Product = {
   specs: { label: string; value: string }[];
   stock: number;
   installments: number;
+  freteEspecial: boolean;
 };
 
 export const categories = [
@@ -63,6 +64,7 @@ function paraProduto(p: DbProduct): Product {
     specs: p.specs,
     stock: p.stock,
     installments: p.installments,
+    freteEspecial: p.frete_especial,
   };
 }
 
@@ -78,7 +80,7 @@ function carregar() {
   void supabase
     .from("products")
     .select(
-      "id, slug, name, brand, tagline, description, price, old_price, badge, category, specs, colors, stock, is_active, image_url, installments",
+      "id, slug, name, brand, tagline, description, price, old_price, badge, category, specs, colors, stock, is_active, image_url, installments, frete_especial",
     )
     .eq("is_active", true)
     .order("created_at", { ascending: false })

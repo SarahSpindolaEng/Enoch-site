@@ -35,13 +35,22 @@ export function Carrinho() {
     setTelefone((prev) => prev || address.phone || "");
   }, [address]);
 
+  // Produtos grandes demais (scooter, triciclo) não passam pelo cálculo
+  // automático de frete — nenhuma transportadora de encomenda comum aceita
+  // esse tamanho/peso. Nesse caso o cliente escolhe retirar na loja ou
+  // combinar a entrega manualmente (motofrete/transportadora própria).
+  const algumFreteEspecial = lines.some(
+    (l) => produtos?.find((p) => p.slug === l.slug)?.freteEspecial,
+  );
+
   const [opcoesFrete, setOpcoesFrete] = useState<OpcaoFrete[] | null>(null);
   const [carregandoFrete, setCarregandoFrete] = useState(false);
   const [erroFrete, setErroFrete] = useState<string | null>(null);
   const [freteEscolhido, setFreteEscolhido] = useState<number | null>(null);
+  const [modoEspecial, setModoEspecial] = useState<"retirada" | "combinado" | null>(null);
 
   useEffect(() => {
-    if (!address?.cep || lines.length === 0) {
+    if (algumFreteEspecial || !address?.cep || lines.length === 0) {
       setOpcoesFrete(null);
       return;
     }
@@ -66,18 +75,19 @@ export function Carrinho() {
       active = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [address?.cep, lines.length]);
+  }, [algumFreteEspecial, address?.cep, lines.length]);
 
   const opcaoAtual = opcoesFrete?.find((o) => o.id === freteEscolhido) ?? null;
-  const frete = opcaoAtual?.preco ?? 0;
+  const frete = algumFreteEspecial ? 0 : (opcaoAtual?.preco ?? 0);
   const total = subtotal + frete;
+  const freteResolvido = algumFreteEspecial ? Boolean(modoEspecial) : Boolean(opcaoAtual);
 
   const handleCheckout = async () => {
     if (!user) {
       navigate("/login");
       return;
     }
-    if (!address || !opcaoAtual) return;
+    if (!address || !freteResolvido) return;
     setErro(null);
     if (!nome.trim()) return setErro("Informe seu nome completo.");
     if (!cpfValido(cpf)) return setErro("CPF inválido. Confira os números.");
@@ -97,7 +107,9 @@ export function Carrinho() {
     }
 
     const { data, error: pagamentoError } = await supabase.functions.invoke("create-payment-preference", {
-      body: { order_id: orderId, shipping_service_id: opcaoAtual.id },
+      body: algumFreteEspecial
+        ? { order_id: orderId, shipping_mode: modoEspecial }
+        : { order_id: orderId, shipping_service_id: opcaoAtual!.id },
     });
     setCarregando(false);
     if (pagamentoError || !data?.init_point) {
@@ -231,7 +243,17 @@ export function Carrinho() {
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Frete</span>
                   <span>
-                    {!address ? "—" : carregandoFrete ? "Calculando…" : opcaoAtual ? formatPrice(frete) : "—"}
+                    {algumFreteEspecial
+                      ? modoEspecial
+                        ? "A combinar"
+                        : "—"
+                      : !address
+                        ? "—"
+                        : carregandoFrete
+                          ? "Calculando…"
+                          : opcaoAtual
+                            ? formatPrice(frete)
+                            : "—"}
                   </span>
                 </div>
                 <div className="flex justify-between border-t border-border pt-3 text-base font-semibold">
@@ -240,7 +262,44 @@ export function Carrinho() {
                 </div>
               </div>
 
-              {!address ? null : erroFrete ? (
+              {algumFreteEspecial ? (
+                <div className="mt-4 grid gap-2">
+                  <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                    <Truck className="size-3.5" />
+                    Esse pedido tem item grande demais pra encomenda comum — escolha como retirar/receber
+                  </p>
+                  {(
+                    [
+                      { id: "retirada" as const, label: "Retirar na loja", desc: "Sem custo de frete." },
+                      {
+                        id: "combinado" as const,
+                        label: "Combinar entrega",
+                        desc: "Entramos em contato pelo WhatsApp pra combinar motofrete/transportadora.",
+                      },
+                    ] as const
+                  ).map((o) => (
+                    <label
+                      key={o.id}
+                      className={`flex cursor-pointer items-start gap-2.5 rounded-xl border px-3.5 py-2.5 text-xs transition-colors ${
+                        modoEspecial === o.id ? "border-primary/50 bg-primary/5" : "border-border"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="frete-especial"
+                        checked={modoEspecial === o.id}
+                        onChange={() => setModoEspecial(o.id)}
+                        className="mt-0.5 accent-primary"
+                      />
+                      <span>
+                        <span className="font-medium text-foreground">{o.label}</span>
+                        <br />
+                        <span className="text-muted-foreground">{o.desc}</span>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              ) : !address ? null : erroFrete ? (
                 <p className="mt-3 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
                   {erroFrete}
                 </p>
@@ -342,7 +401,7 @@ export function Carrinho() {
               <button
                 type="button"
                 onClick={handleCheckout}
-                disabled={carregando || (user ? !address || !opcaoAtual : false)}
+                disabled={carregando || (user ? !address || !freteResolvido : false)}
                 className="mt-6 w-full rounded-full bg-primary px-7 py-3.5 text-sm font-semibold text-primary-foreground transition-all duration-300 hover:brightness-110 hover:shadow-[0_0_40px_-10px_var(--primary)] active:scale-[0.99] disabled:opacity-60"
               >
                 {carregando ? "Processando…" : "Finalizar compra"}
@@ -352,7 +411,7 @@ export function Carrinho() {
                   ? "Você precisa entrar na sua conta para finalizar a compra."
                   : !address
                     ? "Cadastre um endereço pra calcular o frete e finalizar a compra."
-                    : !opcaoAtual
+                    : !freteResolvido
                       ? "Escolha uma opção de envio pra continuar."
                       : "Ao continuar, você será levado pro pagamento no Mercado Pago."}
               </p>

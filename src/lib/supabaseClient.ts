@@ -48,4 +48,5 @@ export type DbProduct = {
   width_cm: number;
   height_cm: number;
   length_cm: number;
+  frete_especial: boolean;
 };

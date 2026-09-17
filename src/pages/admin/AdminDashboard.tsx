@@ -49,6 +49,8 @@ type Order = {
   created_at: string;
   tracking_code: string | null;
   tracking_url: string | null;
+  shipping_mode: string;
+  shipping_empresa: string | null;
   order_items: OrderItem[];
 };
 
@@ -89,7 +91,7 @@ function PedidosTab() {
         supabase
           .from("orders")
           .select(
-            "id, user_id, status, total, created_at, tracking_code, tracking_url, order_items(product_name, quantity, unit_price)",
+            "id, user_id, status, total, created_at, tracking_code, tracking_url, shipping_mode, shipping_empresa, order_items(product_name, quantity, unit_price)",
           )
           // Pendente = pagamento ainda não caiu (ou já expirou e virou
           // cancelado sozinho) — só entra na lista do admin depois de pago.
@@ -169,7 +171,16 @@ function PedidosTab() {
                 <td className="px-5 py-3.5 text-muted-foreground">
                   {o.order_items.map((i) => `${i.quantity}x ${i.product_name}`).join(", ")}
                 </td>
-                <td className="px-5 py-3.5 tabular-nums">{formatPrice(o.total)}</td>
+                <td className="px-5 py-3.5 tabular-nums">
+                  {formatPrice(o.total)}
+                  {o.shipping_mode === "retirada" ? (
+                    <p className="mt-1 text-[11px] font-medium text-primary">Retirada na loja</p>
+                  ) : o.shipping_mode === "combinado" ? (
+                    <p className="mt-1 text-[11px] font-medium text-amber-400">
+                      ⚠ Combinar entrega c/ cliente
+                    </p>
+                  ) : null}
+                </td>
                 <td className="px-5 py-3.5">
                   <select
                     value={o.status}
@@ -441,6 +452,7 @@ type Rascunho = {
   width_cm: number;
   height_cm: number;
   length_cm: number;
+  frete_especial: boolean;
 };
 
 function paraRascunho(p: DbProduct): Rascunho {
@@ -463,6 +475,7 @@ function paraRascunho(p: DbProduct): Rascunho {
     width_cm: p.width_cm,
     height_cm: p.height_cm,
     length_cm: p.length_cm,
+    frete_especial: p.frete_especial,
   };
 }
 
@@ -483,6 +496,7 @@ const rascunhoVazio: Rascunho = {
   width_cm: 20,
   height_cm: 15,
   length_cm: 15,
+  frete_especial: false,
   specs: [],
   colors: [],
 };
@@ -500,7 +514,7 @@ function ProdutosTab() {
     supabase
       .from("products")
       .select(
-        "id, slug, name, brand, tagline, description, price, old_price, badge, category, specs, colors, stock, is_active, image_url, installments",
+        "id, slug, name, brand, tagline, description, price, old_price, badge, category, specs, colors, stock, is_active, image_url, installments, weight_kg, width_cm, height_cm, length_cm, frete_especial",
       )
       .order("created_at", { ascending: false })
       .then(({ data }) => {
@@ -1004,6 +1018,18 @@ function ProdutoLinhaEdicao({
                 </label>
               ))}
             </div>
+            <label className="mt-2.5 flex items-start gap-2 text-xs text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={rascunho.frete_especial}
+                onChange={(e) => setRascunho({ ...rascunho, frete_especial: e.target.checked })}
+                className="mt-0.5 size-3.5 accent-primary"
+              />
+              <span>
+                Frete especial (item grande/pesado demais pra encomenda comum). O carrinho não calcula
+                frete automático — cliente escolhe retirar na loja ou combinar entrega manualmente.
+              </span>
+            </label>
           </div>
 
           <div className="sm:col-span-2">
