@@ -527,11 +527,22 @@ function ProdutosTab() {
 
   // Exclusão com desfazer: some da lista na hora, mas só apaga do banco de
   // verdade alguns segundos depois — dá tempo de arrepender sem perder nada.
+  // Produto que já entrou em algum pedido não pode ser excluído de verdade
+  // (o banco trava por integridade, senão o histórico de pedidos quebraria)
+  // — nesse caso a exclusão falha e o produto volta pra lista com um aviso,
+  // em vez de sumir da tela sem realmente ter sido apagado.
   const remover = (produto: DbProduct) => {
     setProdutos((prev) => prev?.filter((p) => p.id !== produto.id) ?? null);
     const timeoutId = window.setTimeout(async () => {
-      await supabase.from("products").delete().eq("id", produto.id);
-      invalidateProducts();
+      const { error } = await supabase.from("products").delete().eq("id", produto.id);
+      if (error) {
+        setProdutos((prev) => [produto, ...(prev ?? [])]);
+        alert(
+          `Não foi possível excluir "${produto.name}" porque ele já está em algum pedido. Marque como inativo em vez de excluir.`,
+        );
+      } else {
+        invalidateProducts();
+      }
       setDesfazer((atual) => (atual?.produto.id === produto.id ? null : atual));
     }, 5000);
     setDesfazer({ produto, timeoutId });
