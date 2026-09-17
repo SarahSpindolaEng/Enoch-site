@@ -122,7 +122,13 @@ export function ProdutoDetalhe() {
                     <button
                       key={c.name}
                       type="button"
-                      onClick={() => setCor(i)}
+                      onClick={() => {
+                        setCor(i);
+                        // Assume que as fotos foram cadastradas na mesma ordem
+                        // das cores (capa + adicionais) — clicar na cor mostra
+                        // a foto daquela variante.
+                        if (product.images[i]) setImagemAtiva(i);
+                      }}
                       aria-label={c.name}
                       className={cn(
                         "grid size-10 place-items-center rounded-full border transition-all duration-300 hover:scale-105",
