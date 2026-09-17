@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { AudioLines, Bike, Headphones, Keyboard, Laptop, Lightbulb, Watch } from "lucide-react";
+import { AudioLines, Bike, Headphones, Keyboard, Laptop, Lightbulb, Smartphone, Watch } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase, type DbProduct } from "@/lib/supabaseClient";
 
@@ -29,6 +29,7 @@ export const categories = [
   "Informática",
   "Casa Inteligente",
   "Mobilidade Elétrica",
+  "Smartphones",
   "Acessórios",
 ] as const;
 
@@ -40,6 +41,7 @@ const iconePorCategoria: Record<string, LucideIcon> = {
   Informática: Laptop,
   "Casa Inteligente": Lightbulb,
   "Mobilidade Elétrica": Bike,
+  Smartphones: Smartphone,
   Acessórios: Keyboard,
 };
 
