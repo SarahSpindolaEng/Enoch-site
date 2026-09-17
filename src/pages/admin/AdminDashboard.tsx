@@ -446,6 +446,7 @@ type Rascunho = {
   installments: number;
   is_active: boolean;
   image_url: string | null;
+  extra_images: string[];
   specs: Especificacao[];
   colors: Cor[];
   weight_kg: number;
@@ -469,6 +470,7 @@ function paraRascunho(p: DbProduct): Rascunho {
     installments: p.installments,
     is_active: p.is_active,
     image_url: p.image_url,
+    extra_images: p.extra_images ?? [],
     specs: p.specs ?? [],
     colors: p.colors ?? [],
     weight_kg: p.weight_kg,
@@ -492,6 +494,7 @@ const rascunhoVazio: Rascunho = {
   installments: 12,
   is_active: true,
   image_url: null,
+  extra_images: [],
   weight_kg: 0.5,
   width_cm: 20,
   height_cm: 15,
@@ -514,7 +517,7 @@ function ProdutosTab() {
     supabase
       .from("products")
       .select(
-        "id, slug, name, brand, tagline, description, price, old_price, badge, category, specs, colors, stock, is_active, image_url, installments, weight_kg, width_cm, height_cm, length_cm, frete_especial",
+        "id, slug, name, brand, tagline, description, price, old_price, badge, category, specs, colors, stock, is_active, image_url, extra_images, installments, weight_kg, width_cm, height_cm, length_cm, frete_especial",
       )
       .order("created_at", { ascending: false })
       .then(({ data }) => {
@@ -920,6 +923,63 @@ function ProdutoLinhaEdicao({
               placeholder="Texto que aparece na página do produto"
               className="mt-1 w-full rounded-lg border border-input bg-surface px-3 py-2 text-sm outline-none"
             />
+          </label>
+
+          <label className="block sm:col-span-2">
+            <span className="text-xs uppercase tracking-[0.12em] text-muted-foreground">
+              Imagens adicionais (além da capa)
+            </span>
+            <div className="mt-1.5 flex flex-wrap gap-2">
+              {rascunho.extra_images.map((url, i) => (
+                <div key={url} className="relative">
+                  <img src={url} alt="" className="size-16 rounded-lg border border-border object-cover" />
+                  <button
+                    type="button"
+                    aria-label="Remover imagem"
+                    onClick={() =>
+                      setRascunho({
+                        ...rascunho,
+                        extra_images: rascunho.extra_images.filter((_, idx) => idx !== i),
+                      })
+                    }
+                    className="absolute -right-1.5 -top-1.5 grid size-5 place-items-center rounded-full bg-destructive text-white"
+                  >
+                    <X className="size-3" />
+                  </button>
+                </div>
+              ))}
+              <label className="grid size-16 cursor-pointer place-items-center rounded-lg border border-dashed border-primary/50 text-muted-foreground hover:border-primary">
+                <ImagePlus className="size-4 text-primary" />
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={async (e) => {
+                    const files = Array.from(e.target.files ?? []);
+                    e.target.value = "";
+                    const novasUrls: string[] = [];
+                    for (const file of files) {
+                      if (!(await pareceImagemValida(file))) {
+                        alert(`Arquivo inválido: ${file.name} — envie JPEG, PNG, GIF ou WEBP de até 5MB.`);
+                        continue;
+                      }
+                      const nomeSeguro = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+                      const caminho = `${Date.now()}-${nomeSeguro}`;
+                      const { error } = await supabase.storage.from("product-images").upload(caminho, file);
+                      if (!error) {
+                        novasUrls.push(
+                          supabase.storage.from("product-images").getPublicUrl(caminho).data.publicUrl,
+                        );
+                      }
+                    }
+                    if (novasUrls.length) {
+                      setRascunho({ ...rascunho, extra_images: [...rascunho.extra_images, ...novasUrls] });
+                    }
+                  }}
+                />
+              </label>
+            </div>
           </label>
 
           <label className="block">

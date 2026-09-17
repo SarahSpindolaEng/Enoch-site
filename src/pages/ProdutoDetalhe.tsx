@@ -19,6 +19,7 @@ export function ProdutoDetalhe() {
   const product = useProduct(slug);
   const produtos = useProducts();
   const [cor, setCor] = useState(0);
+  const [imagemAtiva, setImagemAtiva] = useState(0);
   const [added, setAdded] = useState(false);
   const { addToCart, toggleWishlist, isWishlisted } = useCart();
 
@@ -47,8 +48,29 @@ export function ProdutoDetalhe() {
           {/* Galeria */}
           <Reveal className="min-w-0">
             <div className="aspect-square overflow-hidden rounded-3xl border border-border bg-surface">
-              <ProductArt Icon={product.icon} imageUrl={product.imageUrl} tone="bright" />
+              <ProductArt
+                Icon={product.icon}
+                imageUrl={product.images[imagemAtiva] ?? product.imageUrl}
+                tone="bright"
+              />
             </div>
+            {product.images.length > 1 ? (
+              <div className="mt-3 flex gap-2.5">
+                {product.images.map((url, i) => (
+                  <button
+                    key={url}
+                    type="button"
+                    onClick={() => setImagemAtiva(i)}
+                    className={cn(
+                      "size-16 shrink-0 overflow-hidden rounded-xl border transition-all duration-300",
+                      imagemAtiva === i ? "border-primary" : "border-border opacity-70 hover:opacity-100",
+                    )}
+                  >
+                    <img src={url} alt="" className="size-full object-cover" />
+                  </button>
+                ))}
+              </div>
+            ) : null}
           </Reveal>
 
           {/* Info */}

@@ -43,6 +43,7 @@ export type DbProduct = {
   stock: number;
   is_active: boolean;
   image_url: string | null;
+  extra_images: string[];
   installments: number;
   weight_kg: number;
   width_cm: number;

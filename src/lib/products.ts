@@ -15,6 +15,7 @@ export type Product = {
   badge: string | null;
   category: string;
   imageUrl: string | null;
+  images: string[];
   icon: LucideIcon;
   colors: { name: string; value: string }[];
   specs: { label: string; value: string }[];
@@ -59,6 +60,7 @@ function paraProduto(p: DbProduct): Product {
     badge: p.badge,
     category: p.category,
     imageUrl: p.image_url,
+    images: [p.image_url, ...(p.extra_images ?? [])].filter((u): u is string => Boolean(u)),
     icon: iconePorCategoria[p.category] ?? AudioLines,
     colors: p.colors,
     specs: p.specs,
@@ -80,7 +82,7 @@ function carregar() {
   void supabase
     .from("products")
     .select(
-      "id, slug, name, brand, tagline, description, price, old_price, badge, category, specs, colors, stock, is_active, image_url, installments, frete_especial",
+      "id, slug, name, brand, tagline, description, price, old_price, badge, category, specs, colors, stock, is_active, image_url, extra_images, installments, frete_especial",
     )
     .eq("is_active", true)
     .order("created_at", { ascending: false })
