@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import {
   Check,
+  HelpCircle,
   History,
   ImagePlus,
   LayoutGrid,
@@ -17,6 +18,7 @@ import {
 import { EnochMark } from "@/components/site/EnochLogo";
 import { LoadingScreen } from "@/components/site/LoadingScreen";
 import { DoisFatores } from "@/components/site/ContaSeguranca";
+import { AdminTutorial, tutorialJaVisto } from "@/components/site/AdminTutorial";
 import { useAdminAuth } from "@/lib/adminAuth";
 import { supabase, type DbProduct } from "@/lib/supabaseClient";
 import { categories, formatPrice, invalidateProducts } from "@/lib/products";
@@ -1160,6 +1162,7 @@ function ProdutoLinhaEdicao({
 export function AdminDashboard() {
   const { isAdmin, precisaAtivar2FA, loading, logout, recarregar } = useAdminAuth();
   const [aba, setAba] = useState<"pedidos" | "produtos" | "reembolsos" | "atividade">("pedidos");
+  const [tutorialAberto, setTutorialAberto] = useState(() => !tutorialJaVisto());
 
   if (loading) {
     return <LoadingScreen />;
@@ -1209,6 +1212,14 @@ export function AdminDashboard() {
             <span className="text-sm font-semibold text-muted-foreground">Painel administrativo</span>
           </div>
           <div className="flex items-center gap-4">
+            <button
+              type="button"
+              onClick={() => setTutorialAberto(true)}
+              className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-primary"
+            >
+              <HelpCircle className="size-4" />
+              Ajuda
+            </button>
             <Link to="/" className="text-sm text-muted-foreground transition-colors hover:text-primary">
               Ver site
             </Link>
@@ -1223,6 +1234,8 @@ export function AdminDashboard() {
           </div>
         </div>
       </header>
+
+      {tutorialAberto ? <AdminTutorial onFechar={() => setTutorialAberto(false)} /> : null}
 
       <main className="mx-auto max-w-6xl px-5 py-10 sm:px-8">
         <h1 className="text-2xl font-bold sm:text-3xl">Visão geral</h1>
