@@ -525,32 +525,40 @@ function ProdutosTab() {
     };
   }, []);
 
-  // Exclusão com desfazer: some da lista na hora, mas só apaga do banco de
-  // verdade alguns segundos depois — dá tempo de arrepender sem perder nada.
+  // Exclusão acontece na hora (não dá pra deixar pendente num timer — se a
+  // pessoa atualizar a página antes de alguns segundos passarem, o timer
+  // morre e a exclusão nunca chega a acontecer de verdade). "Desfazer" reinsere
+  // o produto de volta caso a pessoa clique em arrependimento a tempo.
   // Produto que já entrou em algum pedido não pode ser excluído de verdade
   // (o banco trava por integridade, senão o histórico de pedidos quebraria)
-  // — nesse caso a exclusão falha e o produto volta pra lista com um aviso,
-  // em vez de sumir da tela sem realmente ter sido apagado.
-  const remover = (produto: DbProduct) => {
+  // — nesse caso a exclusão falha e o produto volta pra lista com um aviso.
+  const remover = async (produto: DbProduct) => {
     setProdutos((prev) => prev?.filter((p) => p.id !== produto.id) ?? null);
-    const timeoutId = window.setTimeout(async () => {
-      const { error } = await supabase.from("products").delete().eq("id", produto.id);
-      if (error) {
-        setProdutos((prev) => [produto, ...(prev ?? [])]);
-        alert(
-          `Não foi possível excluir "${produto.name}" porque ele já está em algum pedido. Marque como inativo em vez de excluir.`,
-        );
-      } else {
-        invalidateProducts();
-      }
+    const { error } = await supabase.from("products").delete().eq("id", produto.id);
+    if (error) {
+      setProdutos((prev) => [produto, ...(prev ?? [])]);
+      alert(
+        `Não foi possível excluir "${produto.name}" porque ele já está em algum pedido. Marque como inativo em vez de excluir.`,
+      );
+      return;
+    }
+    invalidateProducts();
+    const timeoutId = window.setTimeout(() => {
       setDesfazer((atual) => (atual?.produto.id === produto.id ? null : atual));
     }, 5000);
     setDesfazer({ produto, timeoutId });
   };
 
-  const desfazerExclusao = () => {
+  const desfazerExclusao = async () => {
     if (!desfazer) return;
     window.clearTimeout(desfazer.timeoutId);
+    const { error } = await supabase.from("products").insert(desfazer.produto);
+    if (error) {
+      alert("Não foi possível desfazer a exclusão agora. Tente cadastrar o produto de novo.");
+      setDesfazer(null);
+      return;
+    }
+    invalidateProducts();
     setProdutos((prev) => [desfazer.produto, ...(prev ?? [])]);
     setDesfazer(null);
   };
