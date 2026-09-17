@@ -1,12 +1,18 @@
 import { Link, Navigate, useParams } from "react-router-dom";
 import { useState } from "react";
-import { ArrowLeft, Check, Heart, ShoppingBag } from "lucide-react";
+import { ArrowLeft, Check, Heart, MessageCircle, ShoppingBag } from "lucide-react";
 import { Reveal } from "@/components/site/Reveal";
 import { ProductCard } from "@/components/site/ProductCard";
 import { ProductArt } from "@/components/site/ProductArt";
 import { formatPrice, useProduct, useProducts } from "@/lib/products";
 import { useCart } from "@/lib/cart";
 import { cn } from "@/lib/utils";
+
+// Mobilidade elétrica (scooter, triciclo) precisa de um humano no meio antes
+// da compra — cor disponível e opção de frete variam produto a produto e o
+// cliente precisa confirmar isso antes de fechar, não dá pra vender "às
+// cegas" como um fone de ouvido.
+const WHATSAPP_VENDAS = "5562993145116";
 
 export function ProdutoDetalhe() {
   const { slug } = useParams<{ slug: string }>();
@@ -115,18 +121,32 @@ export function ProdutoDetalhe() {
               </div>
 
               <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-                <button
-                  type="button"
-                  onClick={() => {
-                    addToCart(product.slug);
-                    setAdded(true);
-                    window.setTimeout(() => setAdded(false), 1800);
-                  }}
-                  className="group inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-primary px-7 py-4 text-sm font-semibold text-primary-foreground transition-all duration-300 hover:brightness-110 hover:shadow-[0_0_44px_-10px_var(--primary)] active:scale-[0.99]"
-                >
-                  <ShoppingBag className="size-4 transition-transform duration-300 group-hover:-translate-y-0.5" />
-                  {added ? "Adicionado ✓" : "Adicionar ao carrinho"}
-                </button>
+                {product.category === "Mobilidade Elétrica" ? (
+                  <a
+                    href={`https://wa.me/${WHATSAPP_VENDAS}?text=${encodeURIComponent(
+                      `Olá! Tenho interesse no ${product.name}. Quais cores vocês têm disponíveis e quais as opções de frete?`,
+                    )}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="group inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-primary px-7 py-4 text-sm font-semibold text-primary-foreground transition-all duration-300 hover:brightness-110 hover:shadow-[0_0_44px_-10px_var(--primary)] active:scale-[0.99]"
+                  >
+                    <MessageCircle className="size-4 transition-transform duration-300 group-hover:-translate-y-0.5" />
+                    Perguntar no WhatsApp
+                  </a>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      addToCart(product.slug);
+                      setAdded(true);
+                      window.setTimeout(() => setAdded(false), 1800);
+                    }}
+                    className="group inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-primary px-7 py-4 text-sm font-semibold text-primary-foreground transition-all duration-300 hover:brightness-110 hover:shadow-[0_0_44px_-10px_var(--primary)] active:scale-[0.99]"
+                  >
+                    <ShoppingBag className="size-4 transition-transform duration-300 group-hover:-translate-y-0.5" />
+                    {added ? "Adicionado ✓" : "Adicionar ao carrinho"}
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => toggleWishlist(product.slug)}
