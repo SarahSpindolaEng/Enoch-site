@@ -153,7 +153,6 @@ function PedidosTab() {
             <th className="px-5 py-3 font-medium">Status</th>
             <th className="px-5 py-3 font-medium">Rastreio</th>
             <th className="px-5 py-3 font-medium">Data</th>
-            <th className="px-5 py-3 font-medium">Ações</th>
           </tr>
         </thead>
         <tbody>
@@ -184,42 +183,21 @@ function PedidosTab() {
                   ) : null}
                 </td>
                 <td className="px-5 py-3.5">
-                  <select
-                    value={o.status}
-                    onChange={(e) => mudarStatus(o.id, e.target.value)}
-                    className={cn(
-                      "rounded-full border px-2.5 py-1 text-xs font-medium outline-none",
-                      statusEstilo[o.status] ?? "border-border bg-background text-muted-foreground",
-                    )}
-                  >
-                    {statusOptions.map((s) => (
-                      <option key={s} value={s}>
-                        {statusLabel[s]}
-                      </option>
-                    ))}
-                  </select>
-                </td>
-                <td className="px-5 py-3.5">
                   <div className="grid gap-1.5">
-                    <input
-                      defaultValue={o.tracking_code ?? ""}
-                      placeholder="Código de rastreio"
-                      onBlur={(e) => mudarRastreio(o.id, { tracking_code: e.target.value || undefined })}
-                      className="w-40 rounded-lg border border-input bg-background px-2 py-1 text-xs outline-none focus:border-primary/60"
-                    />
-                    <input
-                      defaultValue={o.tracking_url ?? ""}
-                      placeholder="Link de rastreio (Melhor Envio)"
-                      onBlur={(e) => mudarRastreio(o.id, { tracking_url: e.target.value || undefined })}
-                      className="w-40 rounded-lg border border-input bg-background px-2 py-1 text-xs outline-none focus:border-primary/60"
-                    />
-                  </div>
-                </td>
-                <td className="px-5 py-3.5 text-muted-foreground">
-                  {new Date(o.created_at).toLocaleDateString("pt-BR")}
-                </td>
-                <td className="px-5 py-3.5">
-                  <div className="flex flex-col gap-1.5">
+                    <select
+                      value={o.status}
+                      onChange={(e) => mudarStatus(o.id, e.target.value)}
+                      className={cn(
+                        "rounded-full border px-2.5 py-1 text-xs font-medium outline-none",
+                        statusEstilo[o.status] ?? "border-border bg-background text-muted-foreground",
+                      )}
+                    >
+                      {statusOptions.map((s) => (
+                        <option key={s} value={s}>
+                          {statusLabel[s]}
+                        </option>
+                      ))}
+                    </select>
                     {o.status === "preparando" ? (
                       <button
                         type="button"
@@ -239,6 +217,25 @@ function PedidosTab() {
                       </button>
                     ) : null}
                   </div>
+                </td>
+                <td className="px-5 py-3.5">
+                  <div className="grid gap-1.5">
+                    <input
+                      defaultValue={o.tracking_code ?? ""}
+                      placeholder="Código de rastreio"
+                      onBlur={(e) => mudarRastreio(o.id, { tracking_code: e.target.value || undefined })}
+                      className="w-40 rounded-lg border border-input bg-background px-2 py-1 text-xs outline-none focus:border-primary/60"
+                    />
+                    <input
+                      defaultValue={o.tracking_url ?? ""}
+                      placeholder="Link de rastreio (Melhor Envio)"
+                      onBlur={(e) => mudarRastreio(o.id, { tracking_url: e.target.value || undefined })}
+                      className="w-40 rounded-lg border border-input bg-background px-2 py-1 text-xs outline-none focus:border-primary/60"
+                    />
+                  </div>
+                </td>
+                <td className="px-5 py-3.5 text-muted-foreground">
+                  {new Date(o.created_at).toLocaleDateString("pt-BR")}
                 </td>
               </tr>
             );
