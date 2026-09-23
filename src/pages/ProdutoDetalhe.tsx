@@ -104,8 +104,8 @@ export function ProdutoDetalhe() {
               </div>
               {product.installments > 1 ? (
                 <p className="mt-1 text-sm text-muted-foreground">
-                  ou {product.installments}x de{" "}
-                  {formatPrice(Math.round(product.price / product.installments))} sem juros
+                  ou em até {product.installments}x no cartão (parcelas com juros, valor calculado no
+                  pagamento)
                 </p>
               ) : null}
 

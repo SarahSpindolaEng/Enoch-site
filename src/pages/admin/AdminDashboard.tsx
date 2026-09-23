@@ -983,7 +983,7 @@ function ProdutoLinhaEdicao({
 
           <label className="block">
             <span className="text-xs uppercase tracking-[0.12em] text-muted-foreground">
-              Parcelamento (sem juros)
+              Máximo de parcelas no cartão
             </span>
             <div className="mt-1 flex items-center gap-2">
               <input

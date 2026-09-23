@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { CheckCircle2, MapPin, Minus, Plus, ShoppingBag, Truck, Trash2 } from "lucide-react";
+import { CheckCircle2, Loader2, MapPin, Minus, Plus, ShoppingBag, Truck, Trash2 } from "lucide-react";
 import { Reveal } from "@/components/site/Reveal";
 import { ProductArt } from "@/components/site/ProductArt";
 import { formatPrice, useProducts } from "@/lib/products";
@@ -18,6 +18,11 @@ export function Carrinho() {
   const produtos = useProducts();
   const navigate = useNavigate();
   const [carregando, setCarregando] = useState(false);
+  // Depois que o pedido é criado, o carrinho já esvazia na hora — mas a
+  // chamada pro Mercado Pago (que vem em seguida) pode demorar alguns
+  // segundos. Sem essa tela, o carrinho fica vazio com um botão desabilitado
+  // parecendo travado. Essa tela cobre exatamente esse intervalo.
+  const [finalizando, setFinalizando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [pedidoId, setPedidoId] = useState<string | null>(null);
 
@@ -106,6 +111,10 @@ export function Carrinho() {
       return setErro(error);
     }
 
+    // Daqui pra frente o carrinho já está vazio (pedido criado) — mostra a
+    // tela de "finalizando" em vez de deixar a tela de carrinho vazio à mostra.
+    setFinalizando(true);
+
     const { data, error: pagamentoError } = await supabase.functions.invoke("create-payment-preference", {
       body: algumFreteEspecial
         ? { order_id: orderId, shipping_mode: modoEspecial }
@@ -113,12 +122,26 @@ export function Carrinho() {
     });
     setCarregando(false);
     if (pagamentoError || !data?.init_point) {
+      setFinalizando(false);
       setErro("Pedido criado, mas não foi possível iniciar o pagamento agora. Veja em 'Meus pedidos'.");
       setPedidoId(orderId);
       return;
     }
     window.location.href = data.init_point;
   };
+
+  if (finalizando) {
+    return (
+      <div className="relative flex min-h-[70vh] flex-col items-center justify-center gap-5 px-5 pt-32 text-center">
+        <Loader2 className="size-10 animate-spin text-primary" />
+        <h1 className="text-xl font-bold">Finalizando seu pedido…</h1>
+        <p className="max-w-sm text-sm text-muted-foreground">
+          Estamos abrindo o pagamento no Mercado Pago. Isso pode levar alguns segundos — não feche nem
+          atualize a página.
+        </p>
+      </div>
+    );
+  }
 
   if (pedidoId) {
     return (
