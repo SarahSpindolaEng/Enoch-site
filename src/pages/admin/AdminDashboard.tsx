@@ -490,7 +490,7 @@ const rascunhoVazio: Rascunho = {
   old_price: null,
   badge: null,
   stock: 0,
-  installments: 12,
+  installments: 18,
   is_active: true,
   image_url: null,
   extra_images: [],
