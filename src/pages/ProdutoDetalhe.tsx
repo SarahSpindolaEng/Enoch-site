@@ -104,8 +104,7 @@ export function ProdutoDetalhe() {
               </div>
               {product.installments > 1 ? (
                 <p className="mt-1 text-sm text-muted-foreground">
-                  ou em até {product.installments}x no cartão (parcelas com juros, valor calculado no
-                  pagamento)
+                  ou em até {product.installments}x no cartão, com juros
                 </p>
               ) : null}
 
